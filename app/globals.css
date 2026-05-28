@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+@theme {
+  /* Rustic kitchen palette — warm parchment, terracotta, sage, mustard */
+  --color-paper: #faf5ea;
+  --color-paper-2: #f4ecd8;
+  --color-card: #fffcf6;
+  --color-sand: #ede0c4;
+  --color-line: #e0d3b3;
+
+  --color-ink: #2b1810;
+  --color-body: #4a372c;
+  --color-muted: #8b6f5b;
+  --color-faint: #b8a48a;
+
+  --color-terra: #c8553d;       /* terracotta — primary accent */
+  --color-clay: #e08560;        /* softer warm */
+  --color-sage: #7b8b5e;        /* herb green */
+  --color-mustard: #d4a24a;     /* golden yellow */
+  --color-plum: #7c4f4f;        /* deep warmth */
+
+  --font-display: var(--font-display), "Iowan Old Style", Georgia, serif;
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+html,
+body {
+  background: var(--color-paper);
+  color: var(--color-body);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Soft paper-grain — warm and barely there */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.06;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2 0 0 0 0 0.12 0 0 0 0 0.06 0 0 0 1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* Display utility: variable Fraunces with editorial warmth */
+.font-display {
+  font-family: var(--font-display);
+  font-variation-settings: "opsz" 144, "SOFT" 100;
+  font-feature-settings: "ss01", "ss02", "dlig", "liga";
+  letter-spacing: -0.012em;
+}
+
+.font-display-italic {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-variation-settings: "opsz" 144, "SOFT" 100;
+}
+
+/* Hand-drawn wavy underline used on hover for cards */
+.deco-wave {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='6' viewBox='0 0 40 6'><path d='M0 3 Q5 0 10 3 T20 3 T30 3 T40 3' stroke='%23c8553d' stroke-width='1.4' fill='none' stroke-linecap='round'/></svg>");
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+  background-size: 40px 5px;
+  padding-bottom: 6px;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
