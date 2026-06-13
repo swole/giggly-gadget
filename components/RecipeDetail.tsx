@@ -10,6 +10,8 @@ import { scaleFactor } from "@/lib/scale";
 import { ScaleControl } from "./ScaleControl";
 import { IngredientLine } from "./IngredientLine";
 import { AddToGroceryButton } from "./AddToGroceryButton";
+import { WantToTryStar } from "./WantToTryStar";
+import { RatingStars } from "./RatingStars";
 import { renderInlineMd } from "@/lib/markdown";
 
 type Props = {
@@ -67,8 +69,21 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
       )}
 
       <header className="mt-8 border-b border-[var(--color-line)] pb-8">
-        <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)]">
-          {[recipe.cuisine, recipe.meal_type].filter(Boolean).join(" · ") || "Recipe"}
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)]">
+            {[recipe.cuisine, recipe.meal_type].filter(Boolean).join(" · ") || "Recipe"}
+          </div>
+          {recipe.source && (
+            <span
+              className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--color-cream)] ${
+                recipe.source === "Claude"
+                  ? "bg-[var(--color-sage)]"
+                  : "bg-[var(--color-clay)]"
+              }`}
+            >
+              by {recipe.source}
+            </span>
+          )}
         </div>
         <h1 className="font-display mt-3 text-4xl leading-[1.02] text-[var(--color-ink)] sm:text-5xl">
           {recipe.title}
@@ -77,11 +92,14 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
           {total !== null && <span>◷ {total} min</span>}
           {recipe.difficulty && <span>◆ {recipe.difficulty}</span>}
           {recipe.servings && <span>⊙ originally serves {recipe.servings}</span>}
-          {recipe.rating ? (
-            <span className="text-[var(--color-mustard)]">
-              {"★".repeat(recipe.rating)}
-            </span>
-          ) : null}
+        </div>
+        <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
+          <RatingStars recipeId={recipe.id} initial={recipe.rating} />
+          <WantToTryStar
+            recipeId={recipe.id}
+            initial={recipe.want_to_try}
+            variant="inline"
+          />
         </div>
       </header>
 
@@ -116,9 +134,9 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
           <AddToGroceryButton recipeId={recipe.id} scaleFactor={factor} />
           <Link
             href={`/recipes/${recipe.id}/cook`}
-            className="group flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-card)] px-5 py-3 text-sm text-[var(--color-ink)] transition-all hover:border-[var(--color-terra)]/50 hover:text-[var(--color-terra)]"
+            className="group flex w-full items-center justify-center gap-2 rounded-lg border-2 border-[var(--color-terra)] bg-[var(--color-card)] px-5 py-3 text-sm font-medium text-[var(--color-terra)] transition-all hover:bg-[var(--color-terra)] hover:text-[var(--color-cream)] hover:shadow-md"
           >
-            <span className="text-[var(--color-clay)]">◷</span>
+            <span>◷</span>
             Start cooking
           </Link>
         </div>

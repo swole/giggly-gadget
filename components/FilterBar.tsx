@@ -46,12 +46,12 @@ export function FilterBar({
           value={q}
           onChange={(e) => onQ(e.target.value)}
           placeholder="Search…"
-          className="w-full border-b border-[var(--color-line)] bg-transparent py-3 pl-7 text-base text-[var(--color-ink)] outline-none transition-colors placeholder:text-[var(--color-faint)] focus:border-[var(--color-terra)]"
+          className="w-full border-b-2 border-[var(--color-line)] bg-transparent py-3 pl-7 text-base text-[var(--color-ink)] outline-none transition-colors placeholder:text-[var(--color-muted)] focus:border-[var(--color-terra)]"
         />
-        <span className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 text-[var(--color-faint)]">
+        <span className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 text-[var(--color-muted)]">
           ⌕
         </span>
-        <span className="absolute right-0 top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-[0.18em] text-[var(--color-faint)]">
+        <span className="absolute right-0 top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)]">
           {shown} / {total}
         </span>
       </div>
@@ -121,13 +121,13 @@ function Chip({
   tone?: "default" | "subtle";
 }) {
   const base =
-    "shrink-0 rounded-full border px-3.5 py-1.5 text-xs transition-colors whitespace-nowrap";
+    "shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all whitespace-nowrap";
   const activeCls =
-    "border-[var(--color-terra)]/70 bg-[var(--color-terra)]/10 text-[var(--color-terra)]";
+    "border-[var(--color-terra-dark)] bg-[var(--color-terra)] text-[var(--color-cream)] shadow-sm";
   const inactiveCls =
     tone === "subtle"
-      ? "border-[var(--color-line)]/60 bg-[var(--color-paper)] text-[var(--color-muted)] hover:border-[var(--color-line)] hover:text-[var(--color-ink)]"
-      : "border-[var(--color-line)] bg-[var(--color-card)] text-[var(--color-body)] hover:border-[var(--color-clay)]/60";
+      ? "border-[var(--color-line-soft)] bg-[var(--color-card)] text-[var(--color-muted)] hover:border-[var(--color-terra)] hover:text-[var(--color-ink)]"
+      : "border-[var(--color-line)] bg-[var(--color-card)] text-[var(--color-body)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]";
 
   return (
     <button

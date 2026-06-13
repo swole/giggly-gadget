@@ -172,7 +172,7 @@ export function CookMode({ recipe, steps }: Props) {
           <button
             onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
             disabled={stepIndex === 0}
-            className="flex items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-5 py-3 text-sm text-[var(--color-body)] transition-colors hover:border-[var(--color-clay)]/60 disabled:opacity-40"
+            className="flex items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-card)] px-5 py-3 text-sm font-medium text-[var(--color-body)] transition-colors hover:border-[var(--color-terra)] hover:text-[var(--color-terra)] disabled:opacity-40"
           >
             ← Prev
           </button>
@@ -181,14 +181,14 @@ export function CookMode({ recipe, steps }: Props) {
             <button
               onClick={markCooked}
               disabled={marking}
-              className="flex items-center gap-2 rounded-lg border border-[var(--color-sage)]/60 bg-[var(--color-sage)]/15 px-6 py-3 text-sm text-[var(--color-ink)] transition-colors hover:border-[var(--color-sage)] hover:bg-[var(--color-sage)]/25 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-lg bg-[var(--color-sage)] px-6 py-3 text-sm font-medium text-[var(--color-cream)] shadow-sm transition-colors hover:brightness-95 disabled:opacity-60"
             >
               {marking ? "Saving…" : "✓ Cooked it"}
             </button>
           ) : (
             <button
               onClick={() => setStepIndex((i) => Math.min(steps.length - 1, i + 1))}
-              className="flex items-center gap-2 rounded-lg border border-[var(--color-terra)]/50 bg-[var(--color-terra)]/10 px-6 py-3 text-sm text-[var(--color-terra)] transition-colors hover:border-[var(--color-terra)]/80 hover:bg-[var(--color-terra)]/15"
+              className="flex items-center gap-2 rounded-lg bg-[var(--color-terra)] px-6 py-3 text-sm font-medium text-[var(--color-cream)] shadow-sm transition-colors hover:bg-[var(--color-terra-dark)]"
             >
               Next →
             </button>

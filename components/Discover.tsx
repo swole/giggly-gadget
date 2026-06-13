@@ -6,6 +6,8 @@ import type { Recipe } from "@/lib/recipes";
 import { totalMinutes } from "@/lib/recipes";
 import { RecipeCard } from "./RecipeCard";
 import { FilterBar } from "./FilterBar";
+import { RandomRoll } from "./RandomRoll";
+import { RecipePreview } from "./RecipePreview";
 
 export function Discover({ recipes }: { recipes: Recipe[] }) {
   const [q, setQ] = useState("");
@@ -13,6 +15,7 @@ export function Discover({ recipes }: { recipes: Recipe[] }) {
   const [maxTime, setMaxTime] = useState<number | null>(null);
   const [wantToTry, setWantToTry] = useState(false);
   const [tag, setTag] = useState<string | null>(null);
+  const [preview, setPreview] = useState<Recipe | null>(null);
 
   const cuisines = useMemo(
     () =>
@@ -54,20 +57,24 @@ export function Discover({ recipes }: { recipes: Recipe[] }) {
           </span>
           <Link
             href="/grocery"
-            className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)] transition-colors hover:text-[var(--color-terra)]"
+            className="rounded-full bg-[var(--color-ink)] px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--color-cream)] shadow-sm transition-all hover:bg-[var(--color-terra)]"
           >
             Grocery list →
           </Link>
         </div>
         <h1 className="font-display-italic mt-4 text-5xl leading-[0.95] text-[var(--color-ink)] sm:text-7xl">
           What&rsquo;s for{" "}
-          <span className="text-[var(--color-terra)]">dinner</span>?
+          <span className="text-[var(--color-terra-dark)]">dinner</span>?
         </h1>
         <p className="mt-4 max-w-xl text-sm text-[var(--color-muted)]">
           {greeting()}. Pick something you&rsquo;ll actually want to cook — filter
           by mood, time, or what&rsquo;s pinned to try.
         </p>
       </header>
+
+      <div className="mb-8">
+        <RandomRoll recipes={recipes} />
+      </div>
 
       <FilterBar
         q={q}
@@ -88,9 +95,13 @@ export function Discover({ recipes }: { recipes: Recipe[] }) {
 
       <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((r) => (
-          <RecipeCard key={r.id} recipe={r} />
+          <RecipeCard key={r.id} recipe={r} onPreview={setPreview} />
         ))}
       </div>
+
+      {preview && (
+        <RecipePreview recipe={preview} onClose={() => setPreview(null)} />
+      )}
 
       {filtered.length === 0 && (
         <div className="mt-20 text-center text-[var(--color-muted)]">

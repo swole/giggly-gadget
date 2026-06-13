@@ -80,10 +80,10 @@ export function ScaleControl({ baseServings, mode, onChange }: Props) {
 }
 
 function pill(active: boolean): string {
-  const base = "rounded-full border px-3.5 py-1.5 text-xs transition-colors";
+  const base = "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all";
   return active
-    ? `${base} border-[var(--color-terra)]/70 bg-[var(--color-terra)]/10 text-[var(--color-terra)]`
-    : `${base} border-[var(--color-line)] bg-[var(--color-card)] text-[var(--color-body)] hover:border-[var(--color-clay)]/60`;
+    ? `${base} border-[var(--color-terra-dark)] bg-[var(--color-terra)] text-[var(--color-cream)] shadow-sm`
+    : `${base} border-[var(--color-line)] bg-[var(--color-card)] text-[var(--color-body)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]`;
 }
 
 function Stepper({

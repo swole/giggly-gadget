@@ -1,8 +1,15 @@
 import Link from "next/link";
 import type { Recipe } from "@/lib/recipes";
 import { totalMinutes } from "@/lib/recipes";
+import { WantToTryStar } from "./WantToTryStar";
 
-export function RecipeCard({ recipe }: { recipe: Recipe }) {
+export function RecipeCard({
+  recipe,
+  onPreview,
+}: {
+  recipe: Recipe;
+  onPreview?: (r: Recipe) => void;
+}) {
   const total = totalMinutes(recipe);
   const visibleTags = recipe.tags.slice(0, 2);
   const cuisineMeal = [recipe.cuisine, recipe.meal_type].filter(Boolean).join(" · ");
@@ -10,7 +17,14 @@ export function RecipeCard({ recipe }: { recipe: Recipe }) {
   return (
     <Link
       href={`/recipes/${recipe.id}`}
-      className="group relative block overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--color-terra)]/40 hover:shadow-md"
+      prefetch
+      onClick={(e) => {
+        if (onPreview) {
+          e.preventDefault();
+          onPreview(recipe);
+        }
+      }}
+      className="group relative block overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] shadow-[0_2px_8px_rgba(60,30,10,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--color-terra)] hover:shadow-[0_6px_16px_rgba(60,30,10,0.14)]"
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-[var(--color-paper-2)]">
         {recipe.image_url ? (
@@ -24,20 +38,15 @@ export function RecipeCard({ recipe }: { recipe: Recipe }) {
         ) : (
           <PlaceholderArt cuisine={recipe.cuisine} mealType={recipe.meal_type} />
         )}
-        {recipe.want_to_try && (
-          <span
-            aria-label="Want to try"
-            title="Want to try"
-            className="absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-card)]/95 text-sm text-[var(--color-mustard)] shadow-sm"
-          >
-            ★
-          </span>
-        )}
+        <WantToTryStar recipeId={recipe.id} initial={recipe.want_to_try} variant="overlay" />
       </div>
 
       <div className="px-5 pb-5 pt-4">
-        <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)]">
-          {cuisineMeal || "Uncategorized"}
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)]">
+            {cuisineMeal || "Uncategorized"}
+          </div>
+          {recipe.source && <SourceBadge source={recipe.source} />}
         </div>
 
         <h2 className="font-display mt-2 text-[1.6rem] leading-[1.05] text-[var(--color-ink)]">
@@ -72,7 +81,7 @@ export function RecipeCard({ recipe }: { recipe: Recipe }) {
             {visibleTags.map((t) => (
               <span
                 key={t}
-                className="rounded-full border border-[var(--color-line)] bg-[var(--color-paper-2)]/50 px-2 py-0.5 text-[10px] tracking-wide text-[var(--color-muted)]"
+                className="rounded-full border border-[var(--color-line-soft)] bg-[var(--color-paper-2)]/70 px-2 py-0.5 text-[10px] tracking-wide text-[var(--color-body)]"
               >
                 {t.toLowerCase()}
               </span>
@@ -81,6 +90,20 @@ export function RecipeCard({ recipe }: { recipe: Recipe }) {
         )}
       </div>
     </Link>
+  );
+}
+
+function SourceBadge({ source }: { source: string }) {
+  const isClaude = source === "Claude";
+  const cls = isClaude
+    ? "bg-[var(--color-sage)] text-[var(--color-cream)]"
+    : "bg-[var(--color-clay)] text-[var(--color-cream)]";
+  return (
+    <span
+      className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.18em] ${cls}`}
+    >
+      {source}
+    </span>
   );
 }
 

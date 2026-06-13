@@ -43,7 +43,7 @@ export function AddToGroceryButton({ recipeId, scaleFactor }: Props) {
     <button
       onClick={add}
       disabled={state === "loading"}
-      className="group relative w-full rounded-lg border border-[var(--color-terra)]/40 bg-[var(--color-terra)]/5 px-5 py-3 text-sm text-[var(--color-terra)] transition-all hover:border-[var(--color-terra)]/80 hover:bg-[var(--color-terra)]/10 disabled:opacity-50"
+      className="group relative w-full rounded-lg border-2 border-[var(--color-terra-dark)] bg-[var(--color-terra)] px-5 py-3 text-sm font-medium text-[var(--color-cream)] shadow-sm transition-all hover:bg-[var(--color-terra-dark)] hover:shadow-md disabled:opacity-60"
     >
       <span className="inline-flex items-center gap-2">
         <span>{state === "done" ? "✓" : "+"}</span>

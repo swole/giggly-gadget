@@ -209,10 +209,10 @@ function GroceryRowItem({
       >
         <span
           aria-hidden
-          className={`mt-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border transition-colors ${
+          className={`mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
             row.checked
-              ? "border-[var(--color-sage)] bg-[var(--color-sage)]/30 text-[var(--color-ink)]"
-              : "border-[var(--color-line)] text-transparent group-hover:border-[var(--color-clay)]"
+              ? "border-[var(--color-sage)] bg-[var(--color-sage)] text-[var(--color-cream)]"
+              : "border-[var(--color-line)] text-transparent group-hover:border-[var(--color-terra)]"
           }`}
         >
           ✓

@@ -84,10 +84,11 @@ export type SyncResult = {
   errors: { recipe: string; error: string }[];
 };
 
-export async function syncRecipesFromNotion(): Promise<SyncResult> {
+export async function syncRecipesFromNotion(options: { force?: boolean } = {}): Promise<SyncResult> {
   const notion = notionClient();
   const supa = supabaseAdmin();
   const result: SyncResult = { total: 0, upserted: 0, skipped: 0, errors: [] };
+  const force = options.force === true;
 
   // 1. Load current sync state from Supabase (notion_updated_at + image_url per recipe)
   const { data: existing } = await supa
@@ -122,10 +123,20 @@ export async function syncRecipesFromNotion(): Promise<SyncResult> {
       const lastEdited = page.last_edited_time;
       const props = page.properties ?? {};
       const title = getTitle(props);
+      const source = getSelect(props, "Source");
+
+      // Skip Reference pages — they're placeholder index pages, not real recipes
+      if (source === "Reference") {
+        result.skipped++;
+        // Also delete from Supabase if it was previously synced
+        await supa.from("recipes").delete().eq("id", pageId);
+        continue;
+      }
 
       try {
         const prior = existingMap.get(pageId);
         if (
+          !force &&
           prior &&
           prior.notion_updated_at &&
           new Date(prior.notion_updated_at).getTime() >= new Date(lastEdited).getTime()
@@ -163,6 +174,7 @@ export async function syncRecipesFromNotion(): Promise<SyncResult> {
           last_made: getDate(props, "Last Made"),
           want_to_try: getCheckbox(props, "Want to Try"),
           image_url: imageUrl,
+          source,
           instructions_md: instructionsMd,
           notion_updated_at: lastEdited,
           synced_at: new Date().toISOString(),

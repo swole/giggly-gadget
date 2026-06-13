@@ -1,23 +1,27 @@
 @import "tailwindcss";
 
 @theme {
-  /* Rustic kitchen palette — warm parchment, terracotta, sage, mustard */
-  --color-paper: #faf5ea;
-  --color-paper-2: #f4ecd8;
-  --color-card: #fffcf6;
-  --color-sand: #ede0c4;
-  --color-line: #e0d3b3;
+  /* Rustic kitchen palette — warm cream, deep terracotta, herb sage, rich mustard.
+     Pumped up from the V1 wash for actual readability. */
+  --color-paper: #f3e6ca;       /* warmer, more saturated cream (was #faf5ea) */
+  --color-paper-2: #e6d2a8;     /* kraft accent */
+  --color-card: #fff9ec;        /* card surface — bright cream pops against paper */
+  --color-sand: #d9c08a;
+  --color-line: #b89a64;        /* visible wheat border (was #e0d3b3) */
+  --color-line-soft: #cfb685;   /* lighter dividers */
 
-  --color-ink: #2b1810;
-  --color-body: #4a372c;
-  --color-muted: #8b6f5b;
-  --color-faint: #b8a48a;
+  --color-ink: #1c0f06;         /* deep espresso */
+  --color-body: #3a261a;        /* walnut */
+  --color-muted: #6f513a;       /* readable mid (was #8b6f5b) */
+  --color-faint: #9a7e5e;
 
-  --color-terra: #c8553d;       /* terracotta — primary accent */
-  --color-clay: #e08560;        /* softer warm */
-  --color-sage: #7b8b5e;        /* herb green */
-  --color-mustard: #d4a24a;     /* golden yellow */
-  --color-plum: #7c4f4f;        /* deep warmth */
+  --color-terra: #b1402a;       /* terracotta — primary accent, more saturated */
+  --color-terra-dark: #8c2f1f;  /* hover state */
+  --color-clay: #d56a35;        /* warm orange */
+  --color-sage: #4f6a3b;        /* deeper herb green */
+  --color-mustard: #be8520;     /* rich gold */
+  --color-plum: #6a3838;
+  --color-cream: #fff5dc;       /* text-on-solid-button cream */
 
   --font-display: var(--font-display), "Iowan Old Style", Georgia, serif;
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -48,7 +52,7 @@ body::before {
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  opacity: 0.06;
+  opacity: 0.08;
   mix-blend-mode: multiply;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2 0 0 0 0 0.12 0 0 0 0 0.06 0 0 0 1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
 }
@@ -82,4 +86,18 @@ body::before {
 }
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(8%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.animate-slide-up {
+  animation: slide-up 0.22s cubic-bezier(0.32, 0.72, 0.32, 1) both;
 }

@@ -16,6 +16,7 @@ export type Recipe = {
   last_made: string | null;
   want_to_try: boolean;
   image_url: string | null;
+  source: string | null;
   instructions_md?: string | null;
 };
 

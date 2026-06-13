@@ -1,12 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { syncRecipesFromNotion } from "@/lib/notion-sync";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
-    const result = await syncRecipesFromNotion();
+    const force = new URL(req.url).searchParams.get("force") === "1";
+    const result = await syncRecipesFromNotion({ force });
     return NextResponse.json(result);
   } catch (e) {
     return NextResponse.json(
@@ -16,7 +17,6 @@ export async function POST() {
   }
 }
 
-export async function GET() {
-  // Allow GET for quick browser-based triggering during development
-  return POST();
+export async function GET(req: NextRequest) {
+  return POST(req);
 }

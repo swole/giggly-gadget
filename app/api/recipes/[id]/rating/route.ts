@@ -1,0 +1,61 @@
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase/server";
+import { notionClient } from "@/lib/notion";
+
+export const runtime = "nodejs";
+
+// Notion "Rating" is a select whose option names are the star emoji repeated
+// (⭐ … ⭐⭐⭐⭐⭐). Supabase stores it as an int 1-5. 0 clears both.
+function notionRatingSelect(value: number) {
+  if (value <= 0) return { select: null };
+  return { select: { name: "⭐".repeat(value) } };
+}
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  let value: number;
+  try {
+    const body = (await req.json()) as { value: number };
+    value = Math.round(Number(body.value));
+  } catch {
+    return NextResponse.json({ error: "invalid json" }, { status: 400 });
+  }
+  if (!Number.isFinite(value) || value < 0 || value > 5) {
+    return NextResponse.json({ error: "value must be 0-5" }, { status: 400 });
+  }
+
+  const supa = supabaseAdmin();
+  const notion = notionClient();
+
+  const [supaRes, notionRes] = await Promise.allSettled([
+    supa
+      .from("recipes")
+      .update({ rating: value === 0 ? null : value })
+      .eq("id", id),
+    notion.pages.update({
+      page_id: id,
+      properties: {
+        Rating: notionRatingSelect(value),
+      },
+    }),
+  ]);
+
+  const supaErr =
+    supaRes.status === "rejected"
+      ? String(supaRes.reason)
+      : (supaRes.value.error?.message ?? null);
+  const notionErr =
+    notionRes.status === "rejected" ? String(notionRes.reason) : null;
+
+  if (supaErr || notionErr) {
+    return NextResponse.json(
+      { ok: false, supabase: supaErr, notion: notionErr },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ ok: true, value });
+}
