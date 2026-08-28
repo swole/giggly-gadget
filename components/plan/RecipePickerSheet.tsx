@@ -167,7 +167,7 @@ export function RecipePickerSheet({
             </div>
             <button
               onClick={onClose}
-              className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)] hover:text-[var(--color-terra)]"
+              className="btn-quiet px-3 py-1 text-[10px] uppercase tracking-[0.18em]"
             >
               Close
             </button>

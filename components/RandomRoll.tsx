@@ -4,18 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Recipe } from "@/lib/recipes";
 import { totalMinutes } from "@/lib/recipes";
-
-const DICE = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+import { Die } from "./plan/Die";
 
 export function RandomRoll({ recipes }: { recipes: Recipe[] }) {
   const [pick, setPick] = useState<Recipe | null>(null);
   const [spinning, setSpinning] = useState(false);
-  const [die, setDie] = useState(DICE[0]);
 
   function roll() {
     if (recipes.length === 0) return;
     setSpinning(true);
-    setDie(DICE[Math.floor(Math.random() * 6)]);
 
     const pool = pick ? recipes.filter((r) => r.id !== pick.id) : recipes;
     const next = pool[Math.floor(Math.random() * pool.length)];
@@ -50,7 +47,7 @@ export function RandomRoll({ recipes }: { recipes: Recipe[] }) {
             </div>
           </div>
         </div>
-        <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--color-terra)] transition-colors group-hover:text-[var(--color-cream)]">
+        <span className="shrink-0 rounded-full border border-[var(--color-terra)]/50 bg-[var(--color-card)] px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--color-terra)] shadow-[0_1px_3px_-1px_rgba(85,55,25,0.25)] transition-colors group-hover:border-[var(--color-cream)]/60 group-hover:bg-transparent group-hover:text-[var(--color-cream)]">
           Roll →
         </span>
       </button>
@@ -88,14 +85,14 @@ export function RandomRoll({ recipes }: { recipes: Recipe[] }) {
             }`}
           />
         ) : (
-          <div className="flex h-28 w-28 shrink-0 items-center justify-center bg-[var(--color-paper-2)] text-4xl sm:h-32 sm:w-32">
-            {die}
+          <div className="flex h-28 w-28 shrink-0 items-center justify-center bg-[var(--color-paper-2)] sm:h-32 sm:w-32">
+            <Die size={44} className={spinning ? "animate-dice text-[var(--color-terra)]" : "text-[var(--color-terra)]"} />
           </div>
         )}
 
         <div className="flex flex-1 flex-col justify-center px-4 py-3 sm:px-5">
           <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-[var(--color-terra)]">
-            <span className="text-base leading-none">{die}</span>
+            <Die size={15} className={spinning ? "animate-dice" : ""} />
             <span>Tonight&rsquo;s pick</span>
           </div>
           <div className="font-display mt-1 text-xl leading-tight text-[var(--color-ink)] sm:text-2xl">

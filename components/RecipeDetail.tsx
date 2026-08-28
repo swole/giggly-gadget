@@ -64,7 +64,7 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
       )}
       <Link
         href={plannedMealId ? "/" : "/recipes"}
-        className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)] transition-colors hover:text-[var(--color-terra)]"
+        className="btn-quiet inline-flex px-3 py-1.5 text-[10px] uppercase tracking-[0.18em]"
       >
         {plannedMealId ? "← Kitchen" : "← Recipes"}
       </Link>
@@ -122,7 +122,7 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
               href={recipe.source_url}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--color-line)] px-4 text-[11px] uppercase tracking-[0.18em] text-[var(--color-muted)] transition-colors hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]"
+              className="btn-quiet gap-2 px-4 text-[11px] uppercase tracking-[0.18em]"
             >
               {detectVideo(recipe.source_url)?.platform === "youtube" ? "▶ Watch the video" : detectVideo(recipe.source_url)?.platform === "tiktok" ? "♪ Watch on TikTok" : "↗ Source"}
             </a>

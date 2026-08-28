@@ -268,7 +268,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
   }
 
   const navBtn =
-    "inline-flex min-h-10 min-w-10 items-center justify-center rounded-full border border-[var(--color-line)] text-[var(--color-muted)] hover:text-[var(--color-terra)]";
+    "inline-flex min-h-10 min-w-10 items-center justify-center rounded-full border border-[var(--color-line)] bg-[var(--color-card)] text-[var(--color-muted)] shadow-[0_1px_3px_-1px_rgba(85,55,25,0.25)] transition-colors hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]";
 
   return (
     <main className="relative z-10 mx-auto max-w-2xl px-4 pb-10 pt-6 sm:px-6 sm:pt-10" onClick={() => setMenuFor(null)}>
@@ -326,7 +326,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
             <button
               onClick={() => setShowStaples((v) => !v)}
               aria-pressed={showStaples}
-              className="min-h-9 rounded-full border border-[var(--color-line)] px-3 text-[10px] uppercase tracking-[0.16em] text-[var(--color-muted)] hover:text-[var(--color-terra)]"
+              className="btn-quiet min-h-9 px-3 text-[10px] uppercase tracking-[0.16em]"
             >
               {showStaples ? "Hide" : "Show"} pantry staples ({stapleCount})
             </button>
@@ -378,7 +378,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
               ? `The list is ready — ${nextShop.items} item${nextShop.items === 1 ? "" : "s"} for ${nextShop.meals} meal${nextShop.meals === 1 ? "" : "s"}.`
               : `${nextShop.meals} meal${nextShop.meals === 1 ? "" : "s"} planned — the list builds on the next plan change.`}
           </span>
-          <span className="shrink-0 text-[10px] uppercase tracking-[0.18em] text-[var(--color-terra-dark)]">Next week&rsquo;s list →</span>
+          <span className="btn-quiet shrink-0 px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] text-[var(--color-terra-dark)]">Next week&rsquo;s list →</span>
         </Link>
       )}
       {nextShop && nextShop.meals === 0 && (
@@ -388,7 +388,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
             {canBuild ? "Plan it and the shopping list writes itself." : "Johnny or Lydia will plan it — the list follows."}
           </span>
           {canBuild && (
-            <Link href={`/plan?week=${nextShop.week}`} className="shrink-0 text-[10px] uppercase tracking-[0.18em] text-[var(--color-terra-dark)] hover:text-[var(--color-terra)]">
+            <Link href={`/plan?week=${nextShop.week}`} className="btn-quiet shrink-0 px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] text-[var(--color-terra-dark)]">
               Plan it →
             </Link>
           )}
@@ -400,7 +400,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
             <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-terra-dark)]">Shopping ahead</span>
             Buying for the week of {formatWeekRange(week)}.
           </span>
-          <Link href="/grocery" className="shrink-0 text-[10px] uppercase tracking-[0.16em] text-[var(--color-muted)] hover:text-[var(--color-terra)]">
+          <Link href="/grocery" className="btn-quiet shrink-0 px-3 py-1 text-[10px] uppercase tracking-[0.16em]">
             This week ←
           </Link>
         </div>
@@ -434,7 +434,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
             {canBuild ? "Plan the week and the list writes itself. Or add items by hand above." : "The list fills in once Johnny or Lydia plan the week. You can add items by hand above."}
           </p>
           {canBuild && (
-            <Link href={`/plan?week=${week}`} className="mt-4 inline-flex min-h-11 items-center rounded-full bg-[var(--color-ink)] px-5 text-[10px] uppercase tracking-[0.18em] text-[var(--color-cream)] hover:bg-[var(--color-terra)]">
+            <Link href={`/plan?week=${week}`} className="btn-ink mt-4 px-5 text-[10px] uppercase tracking-[0.18em]">
               Open the plan →
             </Link>
           )}

@@ -121,7 +121,7 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {} }
           <span>
             <span className="font-medium">Next week is empty.</span> Fill it from the rotation or copy this week.
           </span>
-          <span className="shrink-0 text-[10px] uppercase tracking-[0.18em] text-[var(--color-terra-dark)]">Plan it →</span>
+          <span className="btn-quiet shrink-0 px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] text-[var(--color-terra-dark)]">Plan it →</span>
         </Link>
       )}
 
@@ -196,7 +196,7 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {} }
         {planner && (
           <Link
             href="/plan"
-            className="mt-6 inline-flex min-h-11 items-center text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)] hover:text-[var(--color-terra)]"
+            className="btn-quiet mt-6 px-4 text-[10px] uppercase tracking-[0.18em]"
           >
             Open the week planner →
           </Link>
@@ -254,7 +254,7 @@ function EmptyDay({ planner, sunday }: { planner: boolean; sunday: boolean }) {
       {planner ? (
         <Link
           href="/plan"
-          className="mt-4 inline-flex min-h-11 items-center rounded-full bg-[var(--color-ink)] px-5 text-[10px] uppercase tracking-[0.18em] text-[var(--color-cream)] hover:bg-[var(--color-terra)]"
+          className="btn-ink mt-4 px-5 text-[10px] uppercase tracking-[0.18em]"
         >
           Plan the week →
         </Link>

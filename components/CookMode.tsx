@@ -138,7 +138,7 @@ export function CookMode({ recipe, steps }: Props) {
         <p className="text-[var(--color-muted)]">No method steps found for this recipe.</p>
         <Link
           href={`/recipes/${recipe.id}`}
-          className="mt-6 inline-block text-[var(--color-terra)] underline-offset-4 hover:underline"
+          className="btn-quiet mt-6 px-4 py-2 text-sm"
         >
           ← back to recipe
         </Link>
@@ -152,7 +152,7 @@ export function CookMode({ recipe, steps }: Props) {
         <div className="mx-auto flex max-w-3xl items-center justify-between">
           <Link
             href={`/recipes/${recipe.id}`}
-            className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)] hover:text-[var(--color-terra)]"
+            className="btn-quiet px-3 py-1 text-[10px] uppercase tracking-[0.18em]"
           >
             ← Exit
           </Link>
@@ -187,7 +187,7 @@ export function CookMode({ recipe, steps }: Props) {
           <button
             onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
             disabled={stepIndex === 0}
-            className="flex items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-card)] px-5 py-3 text-sm font-medium text-[var(--color-body)] transition-colors hover:border-[var(--color-terra)] hover:text-[var(--color-terra)] disabled:opacity-40"
+            className="btn-quiet px-5 py-3 text-sm font-medium disabled:opacity-40"
           >
             ← Prev
           </button>
@@ -196,14 +196,14 @@ export function CookMode({ recipe, steps }: Props) {
             <button
               onClick={markCooked}
               disabled={marking}
-              className="flex items-center gap-2 rounded-lg bg-[var(--color-sage)] px-6 py-3 text-sm font-medium text-[var(--color-cream)] shadow-sm transition-colors hover:brightness-95 disabled:opacity-60"
+              className="flex items-center gap-2 rounded-full bg-[var(--color-sage)] px-6 py-3 text-sm font-medium text-[var(--color-cream)] shadow-sm transition-colors hover:brightness-95 disabled:opacity-60"
             >
               {marking ? "Saving…" : "✓ Cooked it"}
             </button>
           ) : (
             <button
               onClick={() => setStepIndex((i) => Math.min(steps.length - 1, i + 1))}
-              className="flex items-center gap-2 rounded-lg bg-[var(--color-terra)] px-6 py-3 text-sm font-medium text-[var(--color-cream)] shadow-sm transition-colors hover:bg-[var(--color-terra-dark)]"
+              className="btn-primary px-6 py-3 text-sm font-medium"
             >
               Next →
             </button>

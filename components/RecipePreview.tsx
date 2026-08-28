@@ -175,13 +175,13 @@ export function RecipePreview({ recipe, onClose }: Props) {
             <div className="flex-1" />
             <button
               onClick={onClose}
-              className="rounded-lg border border-[var(--color-line)] bg-[var(--color-card)] px-4 py-2.5 text-sm text-[var(--color-body)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]"
+              className="btn-quiet px-4 py-2.5 text-sm"
             >
               ✕ Close
             </button>
             <Link
               href={`/recipes/${recipe.id}`}
-              className="rounded-lg bg-[var(--color-terra)] px-5 py-2.5 text-sm font-medium text-[var(--color-cream)] shadow-sm transition-colors hover:bg-[var(--color-terra-dark)]"
+              className="btn-primary px-5 py-2.5 text-sm font-medium"
             >
               Open recipe →
             </Link>

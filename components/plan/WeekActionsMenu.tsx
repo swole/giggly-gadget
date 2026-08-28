@@ -135,7 +135,7 @@ export function WeekActionsMenu({ weekOf, onDone }: { weekOf: string; onDone: ()
           {result && (
             <p className={`mt-3 text-xs ${result.tone === "ok" ? "text-[var(--color-sage)]" : "text-[var(--color-terra-dark)]"}`}>{result.text}</p>
           )}
-          <button onClick={() => setOpen(false)} className="mt-3 text-[10px] uppercase tracking-[0.16em] text-[var(--color-faint)] hover:text-[var(--color-terra)]">
+          <button onClick={() => setOpen(false)} className="btn-quiet mt-3 px-3 py-1 text-[10px] uppercase tracking-[0.16em]">
             Close
           </button>
         </div>

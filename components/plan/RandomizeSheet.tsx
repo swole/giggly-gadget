@@ -185,7 +185,7 @@ export function RandomizeSheet({
                 Roll {scope.kind === "day" ? "the day" : "the week"}
               </h2>
             </div>
-            <button onClick={onClose} className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)] hover:text-[var(--color-terra)]">
+            <button onClick={onClose} className="btn-quiet px-3 py-1 text-[10px] uppercase tracking-[0.18em]">
               Close
             </button>
           </div>
