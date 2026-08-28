@@ -10,7 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { renderQty } from "@/lib/scale";
-import { addDays, formatWeekRange } from "@/lib/week";
+import { addDays, currentWeekMonday, formatWeekRange } from "@/lib/week";
 import { CATEGORY_GLYPH, CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/grocery/labels";
 import { SHOP_LABEL, SHOP_ORDER, type Shop } from "@/lib/grocery/shop";
 import { isPlanner, ROLE_LABEL } from "@/lib/role";
@@ -47,7 +47,10 @@ type BuildInfo = {
 const SHOP_GLYPH: Record<Shop, string> = { wet_market: "🐟", supermarket: "🛒", either: "🧺" };
 const DONE_LINES = ["Basket full. Nicely done.", "That's the week bought.", "All in — kitchen's stocked."];
 
-export function GroceryList({ initial, week }: { initial: GroceryRow[]; week: string }) {
+/** From Friday on, the current week's list carries a pointer to next week's shop. */
+export type NextShop = { week: string; meals: number; items: number } | null;
+
+export function GroceryList({ initial, week, nextShop = null }: { initial: GroceryRow[]; week: string; nextShop?: NextShop }) {
   const role = useRole();
   const canBuild = isPlanner(role);
   const [rows, setRows] = useState<GroceryRow[]>(initial);
@@ -362,6 +365,46 @@ export function GroceryList({ initial, week }: { initial: GroceryRow[]; week: st
           </div>
         )}
       </header>
+
+      {/* Saturday shop: from Friday the current week points at next week's list. */}
+      {nextShop && nextShop.meals > 0 && (
+        <Link
+          href={`/grocery?week=${nextShop.week}`}
+          className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-dashed border-[var(--color-terra)]/50 bg-[var(--color-terra)]/5 px-4 py-3 text-sm text-[var(--color-ink)] hover:bg-[var(--color-terra)]/10"
+        >
+          <span>
+            <span className="font-medium">Shopping for next week?</span>{" "}
+            {nextShop.items > 0
+              ? `The list is ready — ${nextShop.items} item${nextShop.items === 1 ? "" : "s"} for ${nextShop.meals} meal${nextShop.meals === 1 ? "" : "s"}.`
+              : `${nextShop.meals} meal${nextShop.meals === 1 ? "" : "s"} planned — the list builds on the next plan change.`}
+          </span>
+          <span className="shrink-0 text-[10px] uppercase tracking-[0.18em] text-[var(--color-terra-dark)]">Next week&rsquo;s list →</span>
+        </Link>
+      )}
+      {nextShop && nextShop.meals === 0 && (
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-dashed border-[var(--color-line)] bg-[var(--color-paper)]/40 px-4 py-3 text-sm text-[var(--color-muted)]">
+          <span>
+            <span className="font-medium text-[var(--color-ink)]">Next week isn&rsquo;t planned yet.</span>{" "}
+            {canBuild ? "Plan it and the shopping list writes itself." : "Johnny or Lydia will plan it — the list follows."}
+          </span>
+          {canBuild && (
+            <Link href={`/plan?week=${nextShop.week}`} className="shrink-0 text-[10px] uppercase tracking-[0.18em] text-[var(--color-terra-dark)] hover:text-[var(--color-terra)]">
+              Plan it →
+            </Link>
+          )}
+        </div>
+      )}
+      {week > currentWeekMonday() && (
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-[var(--color-mustard)]/12 px-4 py-2.5 text-xs text-[var(--color-ink)]">
+          <span>
+            <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-terra-dark)]">Shopping ahead</span>
+            Buying for the week of {formatWeekRange(week)}.
+          </span>
+          <Link href="/grocery" className="shrink-0 text-[10px] uppercase tracking-[0.16em] text-[var(--color-muted)] hover:text-[var(--color-terra)]">
+            This week ←
+          </Link>
+        </div>
+      )}
 
       <form onSubmit={addManual} className="mt-4">
         <div className="flex gap-2">

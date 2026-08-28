@@ -63,8 +63,9 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {} }
   const cookedToday = todayMeals.filter((m) => m.cooked_at).length;
   const allDone = todayMeals.length > 0 && cookedToday === todayMeals.length;
   // From Friday on, nudge the planners if next week has nothing yet (the window sees Mon-Thu of it by Friday).
+  // isoDow is Mon=0 … Sun=6, so Friday is 4 (was >= 5, which only fired from Saturday).
   const nextMonday = addDays(weekMondayOf(today), 7);
-  const nextWeekEmpty = planner && isoDow(today) >= 5 && !meals.some((m) => m.planned_for >= nextMonday);
+  const nextWeekEmpty = planner && isoDow(today) >= 4 && !meals.some((m) => m.planned_for >= nextMonday);
 
   return (
     <main className="relative z-10 mx-auto max-w-2xl px-4 pb-10 pt-6 sm:px-6 sm:pt-10">
