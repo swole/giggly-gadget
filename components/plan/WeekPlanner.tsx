@@ -8,7 +8,7 @@
 import { thumb } from "@/lib/images";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import type { PlannedMeal, PlannerRecipe, Slot } from "@/lib/plan/types";
+import type { NewPlannedMeal, PlannedMeal, PlannerRecipe, Slot } from "@/lib/plan/types";
 import { SLOT_LABEL } from "@/lib/plan/types";
 import { usePlannedMeals } from "@/lib/plan/usePlannedMeals";
 import { EATERS_SHORT, nextEaters } from "@/lib/portions";
@@ -17,9 +17,32 @@ import { isPlanner } from "@/lib/role";
 import { useRole } from "@/components/role/RoleProvider";
 import { RecipePickerSheet } from "./RecipePickerSheet";
 import { WeekActionsMenu } from "./WeekActionsMenu";
+import { RandomizeSheet, loadSavedTheme, type RollScope } from "./RandomizeSheet";
+import { Die } from "./Die";
+import type { RollFilters } from "@/lib/plan/randomize";
 import { weekConstraintStatus, type ProteinClass } from "@/lib/plan/constraints";
 
 const VISIBLE_SLOTS: Slot[] = ["breakfast", "lunch", "dinner"];
+
+function themeSummary(f: RollFilters): string | null {
+  const parts = [
+    f.source ? `by ${f.source}` : null,
+    f.healthy ? "healthy" : null,
+    f.cuisines?.length ? f.cuisines.join("/") : null,
+    f.quick ? "≤30 min" : null,
+    f.wantToTry ? "want-to-try" : null,
+    f.favourites ? "★4+" : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : null;
+}
+
+type RollToast = {
+  text: string;
+  theme: string | null;
+  again?: () => void;
+  undo?: () => void;
+  undoLabel?: string;
+};
 
 export function WeekPlanner({
   weekOf,
@@ -45,6 +68,10 @@ export function WeekPlanner({
   const [showSunday, setShowSunday] = useState(false);
   const [noteFor, setNoteFor] = useState<PlannedMeal | null>(null);
   const [undo, setUndo] = useState<{ meal: PlannedMeal; title: string } | null>(null);
+  const [rollSheet, setRollSheet] = useState<RollScope | null>(null);
+  const [rollToast, setRollToast] = useState<RollToast | null>(null);
+  const [rollBusy, setRollBusy] = useState(false);
+  const [justRolled, setJustRolled] = useState<Set<number>>(new Set());
 
   const byId = useMemo(() => {
     const m: Record<string, PlannerRecipe> = {};
@@ -52,10 +79,115 @@ export function WeekPlanner({
     return m;
   }, [recipes]);
 
+  function showRollToast(t: RollToast | null) {
+    setUndo(null);
+    setRollToast(t);
+    if (t) setTimeout(() => setRollToast((cur) => (cur === t ? null : cur)), 9000);
+  }
+
+  /** One POST to the randomizer; used by the slot dice and "pick another". */
+  async function rollRequest(body: Record<string, unknown>): Promise<{ added: PlannedMeal[]; added_ids: number[]; error?: string } | null> {
+    setRollBusy(true);
+    try {
+      const res = await fetch("/api/plan/randomize", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ week_of: weekOf, filters: loadSavedTheme(), ...body }),
+      });
+      const j = (await res.json().catch(() => ({}))) as { added?: PlannedMeal[]; added_ids?: number[]; error?: string };
+      if (!res.ok) return { added: [], added_ids: [], error: j.error ?? `Failed (${res.status})` };
+      return { added: j.added ?? [], added_ids: j.added_ids ?? [] };
+    } catch {
+      return null;
+    } finally {
+      setRollBusy(false);
+    }
+  }
+
+  function flash(ids: number[]) {
+    setJustRolled(new Set(ids));
+    setTimeout(() => setJustRolled(new Set()), 1200);
+  }
+
+  /** Dice on an empty slot: instant roll with the saved theme. */
+  async function rollSlot(day: string, slot: Slot) {
+    const theme = themeSummary(loadSavedTheme());
+    const j = await rollRequest({ days: [day], slots: [slot] });
+    if (!j) return showRollToast({ text: "No connection — try again.", theme: null });
+    if (j.error) return showRollToast({ text: j.error, theme: null });
+    if (j.added.length === 0) {
+      return showRollToast({ text: `No ${SLOT_LABEL[slot].toLowerCase()} matches the theme`, theme, again: () => setRollSheet({ kind: "day", day }) });
+    }
+    void refetch();
+    flash(j.added_ids);
+    const added = j.added[0];
+    showRollToast({
+      text: `Rolled ${byId[added.recipe_id]?.title ?? "a dish"}`,
+      theme,
+      again: () => void rerollIds(j.added_ids, theme),
+      undo: () => void remove(added.id),
+      undoLabel: "Undo",
+    });
+  }
+
+  /** Re-roll exactly the given rows (used by toast "Again"). */
+  async function rerollIds(ids: number[], theme: string | null) {
+    const j = await rollRequest({ replace_ids: ids });
+    if (!j || j.error || j.added.length === 0) {
+      return showRollToast({ text: j?.error ?? "Nothing else matches — change the theme?", theme });
+    }
+    void refetch();
+    flash(j.added_ids);
+    const added = j.added[0];
+    showRollToast({
+      text: `Rolled ${byId[added.recipe_id]?.title ?? "a dish"}`,
+      theme,
+      again: () => void rerollIds(j.added_ids, theme),
+      undo: () => void remove(added.id),
+      undoLabel: "Undo",
+    });
+  }
+
+  /** ⋯ menu on a meal: swap it for another idea in the same slot. */
+  async function pickAnother(m: PlannedMeal) {
+    const original: NewPlannedMeal = {
+      planned_for: m.planned_for,
+      slot: m.slot,
+      recipe_id: m.recipe_id,
+      eaters: m.eaters,
+      note: m.note,
+      leftover_of: m.leftover_of,
+    };
+    const theme = themeSummary(loadSavedTheme());
+    const j = await rollRequest({ replace_ids: [m.id] });
+    if (!j) return showRollToast({ text: "No connection — try again.", theme: null });
+    if (j.error) return showRollToast({ text: j.error, theme: null });
+    if (j.added.length === 0) {
+      await add(original); // the roll deleted it but found nothing: put it straight back
+      return showRollToast({ text: "Nothing else matches the theme — kept it", theme });
+    }
+    void refetch();
+    flash(j.added_ids);
+    const added = j.added[0];
+    showRollToast({
+      text: `Swapped for ${byId[added.recipe_id]?.title ?? "a dish"}`,
+      theme,
+      again: () => void rerollIds(j.added_ids, theme),
+      undo: () => {
+        void (async () => {
+          await remove(added.id);
+          await add(original);
+        })();
+      },
+      undoLabel: "Put back",
+    });
+  }
+
   async function removeWithUndo(m: PlannedMeal) {
     const title = byId[m.recipe_id]?.title ?? "Recipe";
     const ok = await remove(m.id);
     if (ok) {
+      setRollToast(null);
       setUndo({ meal: m, title });
       setTimeout(() => setUndo((u) => (u && u.meal.id === m.id ? null : u)), 7000);
     }
@@ -92,17 +224,11 @@ export function WeekPlanner({
             </h1>
             <p className="mt-2 text-sm text-[var(--color-muted)]">{formatWeekRange(weekOf)}</p>
           </div>
-          <nav className="flex items-center gap-1 text-[10px] uppercase tracking-[0.18em]">
-            <Link
-              href={`/plan?week=${prev}`}
-              className="rounded-full border border-[var(--color-line)] px-3 py-1.5 text-[var(--color-muted)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]"
-            >
+          <nav className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em]">
+            <Link href={`/plan?week=${prev}`} className="btn-quiet px-3 py-1.5">
               ← Prev
             </Link>
-            <Link
-              href={`/plan?week=${next}`}
-              className="rounded-full border border-[var(--color-line)] px-3 py-1.5 text-[var(--color-muted)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]"
-            >
+            <Link href={`/plan?week=${next}`} className="btn-quiet px-3 py-1.5">
               Next →
             </Link>
           </nav>
@@ -112,10 +238,10 @@ export function WeekPlanner({
             <span
               key={c.key}
               title={`${c.label}: ${c.count} this week, target ${c.target}`}
-              className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] ${
+              className={`rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] ${
                 c.ok
-                  ? "border-[var(--color-sage)]/50 bg-[var(--color-sage)]/10 text-[var(--color-sage)]"
-                  : "border-[var(--color-terra)]/50 bg-[var(--color-terra)]/10 text-[var(--color-terra-dark)]"
+                  ? "border-[var(--color-sage)]/60 bg-[var(--color-card)] text-[var(--color-sage)]"
+                  : "border-[var(--color-terra)]/60 bg-[var(--color-card)] text-[var(--color-terra-dark)]"
               }`}
             >
               {c.label} {c.count} <span className="opacity-70">{c.target}</span>
@@ -123,10 +249,13 @@ export function WeekPlanner({
           ))}
           {canEdit && (
             <div className="ml-auto flex items-center gap-2">
-              <Link
-                href={`/plan/print?week=${weekOf}`}
-                className="rounded-full border border-[var(--color-line)] px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]"
+              <button
+                onClick={() => setRollSheet({ kind: "week" })}
+                className="btn-primary px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em]"
               >
+                <Die size={13} /> Randomize
+              </button>
+              <Link href={`/plan/print?week=${weekOf}`} className="btn-quiet px-3 py-1.5 text-[10px] uppercase tracking-[0.18em]">
                 Print
               </Link>
               <WeekActionsMenu weekOf={weekOf} onDone={() => void refetch()} />
@@ -140,6 +269,21 @@ export function WeekPlanner({
         )}
       </header>
 
+      {canEdit && meals.length === 0 && (
+        <div className="card-lift mb-5 rounded-2xl border border-dashed border-[var(--color-terra)]/50 bg-[var(--color-card)] px-4 py-4 sm:px-5">
+          <p className="font-display text-lg text-[var(--color-ink)]">A blank week, all yours.</p>
+          <p className="mt-1 text-sm text-[var(--color-muted)]">
+            Roll it from a theme — Lydia&rsquo;s picks, heart healthy, Chinese, quick — or add dish by dish below.
+          </p>
+          <button
+            onClick={() => setRollSheet({ kind: "week" })}
+            className="btn-primary mt-3 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em]"
+          >
+            <Die size={13} /> Randomize the week
+          </button>
+        </div>
+      )}
+
       <div className="space-y-5">
         {days.slice(0, 6).map((d) => (
           <DayCard
@@ -151,10 +295,15 @@ export function WeekPlanner({
             byId={byId}
             proteinByRecipe={proteinByRecipe}
             canEdit={canEdit}
+            rollBusy={rollBusy}
+            justRolled={justRolled}
             onAdd={(slot) => setPicker({ day: d, slot })}
             onRemove={removeWithUndo}
             onNote={setNoteFor}
             onCycleEaters={(m) => patch(m.id, { eaters: nextEaters(m.eaters) })}
+            onRollDay={() => setRollSheet({ kind: "day", day: d })}
+            onRollSlot={(slot) => void rollSlot(d, slot)}
+            onPickAnother={(m) => void pickAnother(m)}
           />
         ))}
 
@@ -181,10 +330,15 @@ export function WeekPlanner({
                 byId={byId}
                 proteinByRecipe={proteinByRecipe}
                 canEdit={canEdit}
+                rollBusy={rollBusy}
+                justRolled={justRolled}
                 onAdd={(slot) => setPicker({ day: days[6], slot })}
                 onRemove={removeWithUndo}
                 onNote={setNoteFor}
                 onCycleEaters={(m) => patch(m.id, { eaters: nextEaters(m.eaters) })}
+                onRollDay={() => setRollSheet({ kind: "day", day: days[6] })}
+                onRollSlot={(slot) => void rollSlot(days[6], slot)}
+                onPickAnother={(m) => void pickAnother(m)}
                 bare
               />
             </div>
@@ -203,6 +357,42 @@ export function WeekPlanner({
         </span>
       </div>
 
+      {rollToast && !undo && (
+        <div className="fixed inset-x-4 bottom-24 z-40 mx-auto max-w-md rounded-2xl bg-[var(--color-ink)] px-4 py-3 text-sm text-[var(--color-cream)] shadow-xl" role="status">
+          <div className="flex items-center justify-between gap-3">
+            <span className="min-w-0">
+              <span className="block truncate">
+                <Die size={12} className="mr-1.5 inline-block align-[-1px] text-[var(--color-mustard)]" />
+                {rollToast.text}
+              </span>
+              {rollToast.theme && <span className="block truncate text-[10px] uppercase tracking-[0.14em] text-[var(--color-cream)]/60">theme: {rollToast.theme}</span>}
+            </span>
+            <span className="flex shrink-0 items-center gap-1.5">
+              {rollToast.again && (
+                <button
+                  onClick={rollToast.again}
+                  disabled={rollBusy}
+                  className="rounded-full border border-[var(--color-cream)]/40 px-3 py-1 text-[10px] uppercase tracking-[0.18em] hover:bg-[var(--color-cream)]/10 disabled:opacity-50"
+                >
+                  {rollBusy ? "…" : "Again"}
+                </button>
+              )}
+              {rollToast.undo && (
+                <button
+                  onClick={() => {
+                    rollToast.undo?.();
+                    setRollToast(null);
+                  }}
+                  className="rounded-full border border-[var(--color-cream)]/40 px-3 py-1 text-[10px] uppercase tracking-[0.18em] hover:bg-[var(--color-cream)]/10"
+                >
+                  {rollToast.undoLabel ?? "Undo"}
+                </button>
+              )}
+            </span>
+          </div>
+        </div>
+      )}
+
       {undo && (
         <div className="fixed inset-x-4 bottom-24 z-40 mx-auto flex max-w-md items-center justify-between gap-3 rounded-2xl bg-[var(--color-ink)] px-4 py-3 text-sm text-[var(--color-cream)] shadow-xl" role="status">
           <span className="truncate">Removed {undo.title}</span>
@@ -210,6 +400,17 @@ export function WeekPlanner({
             Undo
           </button>
         </div>
+      )}
+
+      {rollSheet && canEdit && (
+        <RandomizeSheet
+          scope={rollSheet}
+          weekOf={weekOf}
+          meals={meals}
+          recipes={recipes}
+          onDone={() => void refetch()}
+          onClose={() => setRollSheet(null)}
+        />
       )}
 
       {noteFor && (
@@ -253,10 +454,15 @@ function DayCard({
   byId,
   proteinByRecipe,
   canEdit,
+  rollBusy,
+  justRolled,
   onAdd,
   onRemove,
   onNote,
   onCycleEaters,
+  onRollDay,
+  onRollSlot,
+  onPickAnother,
   bare = false,
 }: {
   day: string;
@@ -266,10 +472,15 @@ function DayCard({
   byId: Record<string, PlannerRecipe>;
   proteinByRecipe: Record<string, { j: number; l: number }>;
   canEdit: boolean;
+  rollBusy: boolean;
+  justRolled: Set<number>;
   onAdd: (slot: Slot) => void;
   onRemove: (m: PlannedMeal) => void;
   onNote: (m: PlannedMeal) => void;
   onCycleEaters: (m: PlannedMeal) => void;
+  onRollDay: () => void;
+  onRollSlot: (slot: Slot) => void;
+  onPickAnother: (m: PlannedMeal) => void;
   bare?: boolean;
 }) {
   // Protein for the day from the heart-healthy recipes' notes (J / L grams). Partial when a recipe has none.
@@ -289,35 +500,47 @@ function DayCard({
       className={
         bare
           ? ""
-          : `rounded-2xl border bg-[var(--color-card)] shadow-sm ${
-              isToday ? "border-[var(--color-terra)]/60" : "border-[var(--color-line)]/70"
+          : `card-lift rounded-2xl border bg-[var(--color-card)] ${
+              isToday ? "border-[var(--color-terra)]/70" : "border-[var(--color-line)]"
             }`
       }
     >
       {!bare && (
-        <div className="flex items-baseline justify-between border-b border-[var(--color-line)]/50 px-4 py-2.5">
+        <div className="flex items-center justify-between border-b border-[var(--color-line)]/60 px-4 py-2.5">
           <h2 className="font-display text-xl text-[var(--color-ink)]">{formatDayLabel(day)}</h2>
-          {showProtein && (
-            <span
-              className="ml-3 text-[10px] uppercase tracking-[0.14em] text-[var(--color-faint)]"
-              title={`Protein from the recipes' notes${protein.missing ? ` (${protein.missing} meal${protein.missing > 1 ? "s" : ""} without a figure)` : ""}. Targets J 110-150 g, L 70-80 g.`}
-            >
-              J {protein.j} g · L {protein.l} g{protein.missing ? " +" : ""}
-            </span>
-          )}
-          {isToday && (
-            <span className="rounded-full bg-[var(--color-terra)] px-2 py-0.5 text-[9px] uppercase tracking-[0.18em] text-[var(--color-cream)]">
-              Today
-            </span>
-          )}
+          <span className="ml-3 flex items-center gap-2">
+            {showProtein && (
+              <span
+                className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-muted)]"
+                title={`Protein from the recipes' notes${protein.missing ? ` (${protein.missing} meal${protein.missing > 1 ? "s" : ""} without a figure)` : ""}. Targets J 110-150 g, L 70-80 g.`}
+              >
+                J {protein.j} g · L {protein.l} g{protein.missing ? " +" : ""}
+              </span>
+            )}
+            {isToday && (
+              <span className="rounded-full bg-[var(--color-terra)] px-2 py-0.5 text-[9px] uppercase tracking-[0.18em] text-[var(--color-cream)]">
+                Today
+              </span>
+            )}
+            {canEdit && (
+              <button
+                onClick={onRollDay}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-line)]/70 bg-[var(--color-card)] text-base leading-none text-[var(--color-muted)] transition-colors hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]"
+                title={`Randomize ${formatDayLabel(day)}`}
+                aria-label={`Randomize ${formatDayLabel(day)}`}
+              >
+                <Die size={14} />
+              </button>
+            )}
+          </span>
         </div>
       )}
       <div className={bare ? "" : "px-2 py-1"}>
         {slots.map((slot) => {
           const ms = meals.filter((m) => m.slot === slot);
           return (
-            <div key={slot} className="flex gap-3 border-b border-[var(--color-line)]/30 px-2 py-2 last:border-b-0">
-              <div className="w-16 shrink-0 pt-1.5 text-[10px] uppercase tracking-[0.16em] text-[var(--color-muted)]">
+            <div key={slot} className="flex gap-3 border-b border-[var(--color-line)]/40 px-2 py-2 last:border-b-0">
+              <div className="w-16 shrink-0 pt-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--color-muted)]">
                 {SLOT_LABEL[slot]}
               </div>
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
@@ -327,18 +550,31 @@ function DayCard({
                     meal={m}
                     recipe={byId[m.recipe_id]}
                     canEdit={canEdit}
+                    flash={justRolled.has(m.id)}
                     onRemove={() => onRemove(m)}
                     onNote={() => onNote(m)}
                     onCycleEaters={() => onCycleEaters(m)}
+                    onPickAnother={() => onPickAnother(m)}
                   />
                 ))}
                 {canEdit && (
                   <button
                     onClick={() => onAdd(slot)}
-                    className="inline-flex min-h-9 items-center rounded-full border border-dashed border-[var(--color-line)] px-3 text-[11px] text-[var(--color-muted)] transition-colors hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]"
+                    className="inline-flex min-h-9 items-center rounded-full border border-dashed border-[var(--color-line)] bg-[var(--color-paper)]/25 px-3 text-[11px] font-medium text-[var(--color-muted)] transition-colors hover:border-[var(--color-terra)] hover:bg-[var(--color-terra)]/5 hover:text-[var(--color-terra)]"
                     aria-label={`Add to ${SLOT_LABEL[slot]}`}
                   >
                     + Add
+                  </button>
+                )}
+                {canEdit && ms.length === 0 && (
+                  <button
+                    onClick={() => onRollSlot(slot)}
+                    disabled={rollBusy}
+                    className="inline-flex min-h-9 items-center rounded-full border border-dashed border-[var(--color-line)] bg-[var(--color-paper)]/25 px-2.5 text-sm leading-none text-[var(--color-muted)] transition-colors hover:border-[var(--color-terra)] hover:bg-[var(--color-terra)]/5 hover:text-[var(--color-terra)] disabled:opacity-50"
+                    title={`Roll a random ${SLOT_LABEL[slot].toLowerCase()}`}
+                    aria-label={`Roll a random ${SLOT_LABEL[slot].toLowerCase()}`}
+                  >
+                    <Die size={14} className={rollBusy ? "animate-dice" : ""} />
                   </button>
                 )}
                 {!canEdit && ms.length === 0 && <span className="text-xs text-[var(--color-faint)]">—</span>}
@@ -355,16 +591,20 @@ function MealChip({
   meal,
   recipe,
   canEdit,
+  flash = false,
   onRemove,
   onNote,
   onCycleEaters,
+  onPickAnother,
 }: {
   meal: PlannedMeal;
   recipe: PlannerRecipe | undefined;
   canEdit: boolean;
+  flash?: boolean;
   onRemove: () => void;
   onNote: () => void;
   onCycleEaters: () => void;
+  onPickAnother: () => void;
 }) {
   const cooked = !!meal.cooked_at;
   const pending = meal.id < 0;
@@ -372,11 +612,11 @@ function MealChip({
   return (
     <span className="relative inline-flex max-w-full">
       <span
-        className={`inline-flex max-w-full items-center gap-1.5 rounded-full border py-1 pl-1 pr-1 text-xs ${
+        className={`inline-flex max-w-full items-center gap-1.5 rounded-full border py-1 pl-1 pr-1 text-xs shadow-[0_1px_3px_-1px_rgba(85,55,25,0.3)] ${
           cooked
-            ? "border-[var(--color-sage)]/50 bg-[var(--color-sage)]/10"
-            : "border-[var(--color-line)] bg-[var(--color-paper)]/60"
-        } ${pending ? "opacity-60" : ""}`}
+            ? "border-[var(--color-sage)]/60 bg-[var(--color-sage)]/10"
+            : "border-[var(--color-line)] bg-[var(--color-card)]"
+        } ${pending ? "opacity-60" : ""} ${flash ? "animate-rolled-in" : ""}`}
       >
         <span className="h-7 w-7 shrink-0 overflow-hidden rounded-full bg-[var(--color-paper-2)]">
           {recipe?.image_url ? (
@@ -427,6 +667,11 @@ function MealChip({
             <button role="menuitem" onClick={() => { setMenu(false); onNote(); }} className="block min-h-11 w-full px-4 text-left hover:bg-[var(--color-paper)]/60">
               {meal.note ? "Edit note" : "Add a note for the cook"}
             </button>
+            {!cooked && meal.leftover_of === null && (
+              <button role="menuitem" onClick={() => { setMenu(false); onPickAnother(); }} className="block min-h-11 w-full px-4 text-left hover:bg-[var(--color-paper)]/60">
+                <Die size={12} className="mr-1.5 inline-block align-[-1px] text-[var(--color-terra)]" />Pick another
+              </button>
+            )}
             <Link role="menuitem" href={`/recipes/${meal.recipe_id}?eaters=${meal.eaters}&pm=${meal.id}`} className="flex min-h-11 w-full items-center px-4 text-left hover:bg-[var(--color-paper)]/60">
               Open recipe
             </Link>

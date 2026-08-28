@@ -5,7 +5,7 @@ import type { PlannedMeal, PlannerRecipe } from "./types";
 import { addDays } from "@/lib/week";
 
 const PLANNER_RECIPE_COLS =
-  "id, title, image_url, cuisine, meal_type, tags, prep_min, cook_min, servings, last_made, want_to_try";
+  "id, title, image_url, cuisine, meal_type, tags, prep_min, cook_min, servings, last_made, want_to_try, source, rating";
 
 export async function listPlannerRecipes(): Promise<PlannerRecipe[]> {
   const supa = supabaseAdmin();

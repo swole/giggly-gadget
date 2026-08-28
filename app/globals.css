@@ -1,25 +1,26 @@
 @import "tailwindcss";
 
 @theme {
-  /* Rustic kitchen palette — warm cream, deep terracotta, herb sage, rich mustard.
-     Pumped up from the V1 wash for actual readability. */
-  --color-paper: #f3e6ca;       /* warmer, more saturated cream (was #faf5ea) */
-  --color-paper-2: #e6d2a8;     /* kraft accent */
-  --color-card: #fff9ec;        /* card surface — bright cream pops against paper */
+  /* Rustic kitchen palette — kraft table, bright recipe cards, terracotta actions.
+     V3 contrast pass: the page went kraftier and the cards brighter so surfaces
+     separate; lines and labels dropped a step darker so nothing blends away. */
+  --color-paper: #ecd9b0;       /* kraft table (was #f3e6ca — cards vanished into it) */
+  --color-paper-2: #dfc493;     /* deeper kraft accent */
+  --color-card: #fffaf0;        /* bright cream card — pops off the kraft */
   --color-sand: #d9c08a;
-  --color-line: #b89a64;        /* visible wheat border (was #e0d3b3) */
-  --color-line-soft: #cfb685;   /* lighter dividers */
+  --color-line: #9c7c46;        /* espresso-wheat hairline, reads at 1px (was #b89a64) */
+  --color-line-soft: #c3a771;   /* lighter dividers */
 
   --color-ink: #1c0f06;         /* deep espresso */
-  --color-body: #3a261a;        /* walnut */
-  --color-muted: #6f513a;       /* readable mid (was #8b6f5b) */
-  --color-faint: #9a7e5e;
+  --color-body: #33200f;        /* darker walnut */
+  --color-muted: #5d4128;       /* labels now clearly legible (was #6f513a) */
+  --color-faint: #83643f;
 
-  --color-terra: #b1402a;       /* terracotta — primary accent, more saturated */
-  --color-terra-dark: #8c2f1f;  /* hover state */
+  --color-terra: #b1402a;       /* terracotta — THE action colour */
+  --color-terra-dark: #8c2f1f;  /* hover / pressed */
   --color-clay: #d56a35;        /* warm orange */
-  --color-sage: #4f6a3b;        /* deeper herb green */
-  --color-mustard: #be8520;     /* rich gold */
+  --color-sage: #476135;        /* herb green, darkened for small text */
+  --color-mustard: #b47c17;     /* rich gold */
   --color-plum: #6a3838;
   --color-cream: #fff5dc;       /* text-on-solid-button cream */
 
@@ -88,6 +89,115 @@ body::before {
   display: none;
 }
 
+/* ---- Button system: three clear tiers instead of a page of same-weight outlines. ---- */
+/* Primary: solid terracotta. The one thing to press. */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.25rem;
+  border-radius: 9999px;
+  background: var(--color-terra);
+  color: var(--color-cream);
+  border: 1px solid var(--color-terra-dark);
+  box-shadow: 0 1px 0 rgba(255, 245, 220, 0.35) inset, 0 2px 6px -1px rgba(92, 31, 18, 0.45);
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+.btn-primary:hover { background: var(--color-terra-dark); }
+.btn-primary:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(255, 245, 220, 0.25) inset, 0 1px 2px rgba(92, 31, 18, 0.4); }
+.btn-primary:disabled { opacity: 0.55; transform: none; }
+
+/* Secondary: solid ink. Strong but calmer than terra. */
+.btn-ink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.25rem;
+  border-radius: 9999px;
+  background: var(--color-ink);
+  color: var(--color-cream);
+  border: 1px solid var(--color-ink);
+  box-shadow: 0 2px 6px -1px rgba(28, 15, 6, 0.35);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.btn-ink:hover { background: var(--color-terra); border-color: var(--color-terra-dark); }
+.btn-ink:active { transform: translateY(1px); }
+.btn-ink:disabled { opacity: 0.55; transform: none; }
+
+/* Tertiary: bordered pill on card. Visible at rest, terra on hover. */
+.btn-quiet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.25rem;
+  border-radius: 9999px;
+  background: var(--color-card);
+  color: var(--color-body);
+  border: 1px solid var(--color-line);
+  box-shadow: 0 1px 3px -1px rgba(92, 65, 40, 0.25);
+  transition: color 0.15s ease, border-color 0.15s ease, transform 0.1s ease, background 0.15s ease;
+}
+.btn-quiet:hover { border-color: var(--color-terra); color: var(--color-terra); }
+.btn-quiet:active { transform: translateY(1px); }
+.btn-quiet:disabled { opacity: 0.55; transform: none; }
+
+/* Every interactive control gets a visible keyboard focus. */
+.btn-primary:focus-visible, .btn-ink:focus-visible, .btn-quiet:focus-visible,
+.chip-toggle:focus-visible {
+  outline: 2px solid var(--color-terra);
+  outline-offset: 2px;
+}
+
+/* Theme chips in the randomizer: off = quiet bordered, on = solid ink with a tick of lift. */
+.chip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 9999px;
+  border: 1px solid var(--color-line);
+  background: var(--color-card);
+  color: var(--color-muted);
+  transition: all 0.13s ease;
+}
+.chip-toggle:hover { border-color: var(--color-terra); color: var(--color-terra); }
+.chip-toggle[data-on="true"] {
+  border-color: var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-cream);
+  box-shadow: 0 2px 5px -1px rgba(28, 15, 6, 0.4);
+}
+
+/* Day cards: crisp recipe-card lift off the kraft table. */
+.card-lift {
+  box-shadow:
+    0 1px 0 rgba(255, 250, 240, 0.6) inset,
+    0 1px 2px rgba(85, 55, 25, 0.12),
+    0 8px 22px -12px rgba(85, 55, 25, 0.45);
+}
+
+/* The die wobbles while a roll is in flight. */
+@keyframes dice-roll {
+  0% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(-18deg) scale(1.15); }
+  50% { transform: rotate(14deg) scale(1.05); }
+  75% { transform: rotate(-8deg) scale(1.12); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+.animate-dice {
+  display: inline-block;
+  animation: dice-roll 0.5s ease-in-out infinite;
+}
+/* A freshly rolled chip announces itself with a mustard flash that settles. */
+@keyframes rolled-in {
+  0% { background-color: color-mix(in srgb, var(--color-mustard) 35%, var(--color-card)); transform: scale(0.92); }
+  60% { transform: scale(1.03); }
+  100% { background-color: var(--color-card); transform: scale(1); }
+}
+.animate-rolled-in { animation: rolled-in 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
 @keyframes slide-up {
   from {
     transform: translateY(8%);
@@ -130,7 +240,7 @@ body::before {
   animation: tick-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 @media (prefers-reduced-motion: reduce) {
-  .animate-cheer, .animate-float-up, .animate-tick-in, .animate-slide-up { animation: none; }
+  .animate-cheer, .animate-float-up, .animate-tick-in, .animate-slide-up, .animate-dice, .animate-rolled-in { animation: none; }
 }
 /* Inputs: 16px on touch screens stops iOS zooming the page when a field is focused. */
 @media (pointer: coarse) {

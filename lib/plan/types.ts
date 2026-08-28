@@ -56,6 +56,8 @@ export type PlannerRecipe = Pick<
   | "servings"
   | "last_made"
   | "want_to_try"
+  | "source"
+  | "rating"
 >;
 
 export type NewPlannedMeal = {

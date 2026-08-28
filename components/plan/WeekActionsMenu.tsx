@@ -54,11 +54,37 @@ export function WeekActionsMenu({ weekOf, onDone }: { weekOf: string; onDone: ()
     onDone();
   }
 
+  async function clearWeek() {
+    if (!confirm("Clear the week? Every planned meal goes — cooked ones stay as the record.")) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/plan/clear", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ week_of: weekOf }),
+      });
+      const j = (await res.json().catch(() => ({}))) as { removed?: number; kept_cooked?: number; error?: string };
+      if (!res.ok) {
+        setResult({ text: j.error ?? `Failed (${res.status})`, tone: "warn" });
+        return;
+      }
+      setResult({
+        text: `Cleared ${j.removed ?? 0} meal${(j.removed ?? 0) === 1 ? "" : "s"}${j.kept_cooked ? ` · ${j.kept_cooked} cooked kept` : ""}`,
+        tone: "ok",
+      });
+      onDone();
+    } catch {
+      setResult({ text: "No connection — try again.", tone: "warn" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex min-h-9 items-center rounded-full border border-[var(--color-line)] px-3 text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]"
+        className="btn-quiet px-3 py-1.5 text-[10px] uppercase tracking-[0.18em]"
         aria-expanded={open}
         aria-haspopup="menu"
       >
@@ -90,11 +116,20 @@ export function WeekActionsMenu({ weekOf, onDone }: { weekOf: string; onDone: ()
             ))}
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button onClick={fill} disabled={busy} className="rounded-full bg-[var(--color-ink)] px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-[var(--color-cream)] hover:bg-[var(--color-terra)] disabled:opacity-50">
+            <button onClick={fill} disabled={busy} className="btn-ink px-4 py-2 text-[10px] uppercase tracking-[0.16em]">
               {busy ? "Working…" : "Fill"}
             </button>
-            <button onClick={copyLast} disabled={busy} className="rounded-full border border-[var(--color-line)] px-4 py-2 text-[10px] uppercase tracking-[0.16em] text-[var(--color-ink)] hover:border-[var(--color-terra)] disabled:opacity-50">
+            <button onClick={copyLast} disabled={busy} className="btn-quiet px-4 py-2 text-[10px] uppercase tracking-[0.16em]">
               Copy last week
+            </button>
+          </div>
+          <div className="mt-3 border-t border-[var(--color-line)]/50 pt-3">
+            <button
+              onClick={clearWeek}
+              disabled={busy}
+              className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-terra-dark)] hover:text-[var(--color-terra)] disabled:opacity-50"
+            >
+              Clear the week (keeps cooked)
             </button>
           </div>
           {result && (
