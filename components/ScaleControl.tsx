@@ -1,6 +1,7 @@
 "use client";
 
 import type { ScaleMode } from "@/lib/scale";
+import { EATERS, EATERS_LABEL, type Eaters } from "@/lib/portions";
 
 type Props = {
   baseServings: number | null;
@@ -13,6 +14,7 @@ const SERVING_PRESETS = [1, 2, 4, 6];
 export function ScaleControl({ baseServings, mode, onChange }: Props) {
   const isMealPrep = mode.kind === "mealPrep";
   const activeServings = mode.kind === "servings" ? mode.target : null;
+  const activeEaters: Eaters | null = mode.kind === "eaters" ? mode.eaters : null;
 
   return (
     <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-2)]/40 p-4">
@@ -25,6 +27,20 @@ export function ScaleControl({ baseServings, mode, onChange }: Props) {
             originally serves {baseServings}
           </span>
         )}
+      </div>
+
+      {/* Household: the recipe as written, plated 3:2 on protein and grains */}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {EATERS.map((e) => (
+          <button key={e} onClick={() => onChange({ kind: "eaters", eaters: e })} className={pill(activeEaters === e)}>
+            {EATERS_LABEL[e]}
+          </button>
+        ))}
+      </div>
+      <div className="mt-3 flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-[var(--color-faint)]">
+        <span className="h-px flex-1 bg-[var(--color-line)]/60" />
+        or scale by servings
+        <span className="h-px flex-1 bg-[var(--color-line)]/60" />
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">

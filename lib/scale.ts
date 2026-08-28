@@ -1,10 +1,17 @@
 // Pure-math portion scaling with readable fraction rendering.
 
-export type ScaleMode = { kind: "servings"; target: number } | { kind: "mealPrep"; days: number; servingsPerDay: number };
+import type { Eaters } from "./portions";
+
+export type ScaleMode =
+  | { kind: "servings"; target: number }
+  | { kind: "mealPrep"; days: number; servingsPerDay: number }
+  // Household mode: the recipe as written, split per ingredient category (see lib/portions.ts).
+  | { kind: "eaters"; eaters: Eaters };
 
 export function scaleFactor(originalServings: number | null | undefined, mode: ScaleMode): number {
   const base = originalServings && originalServings > 0 ? originalServings : 2; // safe default
   if (mode.kind === "servings") return mode.target / base;
+  if (mode.kind === "eaters") return 1; // per-line factor is category-dependent; callers use eatersFactor()
   return (mode.days * mode.servingsPerDay) / base;
 }
 

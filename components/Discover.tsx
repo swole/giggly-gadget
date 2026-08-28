@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import type { Recipe } from "@/lib/recipes";
 import { totalMinutes } from "@/lib/recipes";
 import { RecipeCard } from "./RecipeCard";
@@ -16,6 +15,10 @@ export function Discover({ recipes }: { recipes: Recipe[] }) {
   const [wantToTry, setWantToTry] = useState(false);
   const [tag, setTag] = useState<string | null>(null);
   const [preview, setPreview] = useState<Recipe | null>(null);
+  const greet = useGreeting();
+  // 185 cards of markup is ~450 KB of HTML on a phone; render a page at a time (filters still see everything).
+  const PAGE = 24;
+  const [limit, setLimit] = useState(PAGE);
 
   const cuisines = useMemo(
     () =>
@@ -53,21 +56,15 @@ export function Discover({ recipes }: { recipes: Recipe[] }) {
       <header className="mb-10 sm:mb-14">
         <div className="flex items-baseline justify-between">
           <span className="text-[10px] uppercase tracking-[0.32em] text-[var(--color-muted)]">
-            Giggly Gadget
+            Recipes
           </span>
-          <Link
-            href="/grocery"
-            className="rounded-full bg-[var(--color-ink)] px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--color-cream)] shadow-sm transition-all hover:bg-[var(--color-terra)]"
-          >
-            Grocery list →
-          </Link>
         </div>
         <h1 className="font-display-italic mt-4 text-5xl leading-[0.95] text-[var(--color-ink)] sm:text-7xl">
           What&rsquo;s for{" "}
           <span className="text-[var(--color-terra-dark)]">dinner</span>?
         </h1>
         <p className="mt-4 max-w-xl text-sm text-[var(--color-muted)]">
-          {greeting()}. Pick something you&rsquo;ll actually want to cook — filter
+          {greet}. Pick something you&rsquo;ll actually want to cook — filter
           by mood, time, or what&rsquo;s pinned to try.
         </p>
       </header>
@@ -94,10 +91,20 @@ export function Discover({ recipes }: { recipes: Recipe[] }) {
       />
 
       <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((r) => (
+        {filtered.slice(0, limit).map((r) => (
           <RecipeCard key={r.id} recipe={r} onPreview={setPreview} />
         ))}
       </div>
+      {filtered.length > limit && (
+        <div className="mt-8 text-center">
+          <button
+            onClick={() => setLimit((n) => n + PAGE * 2)}
+            className="inline-flex min-h-11 items-center rounded-full border border-[var(--color-line)] px-5 text-[11px] uppercase tracking-[0.18em] text-[var(--color-muted)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]"
+          >
+            Show more · {filtered.length - limit} left
+          </button>
+        </div>
+      )}
 
       {preview && (
         <RecipePreview recipe={preview} onClose={() => setPreview(null)} />
@@ -115,6 +122,12 @@ export function Discover({ recipes }: { recipes: Recipe[] }) {
       )}
     </main>
   );
+}
+
+const noop = () => () => {};
+/** Device-local greeting without a hydration mismatch: the server says "Hungry", the client takes over after mount. */
+function useGreeting(): string {
+  return useSyncExternalStore(noop, greeting, () => "Hungry");
 }
 
 function greeting(): string {

@@ -2,13 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { Recipe } from "@/lib/recipes";
 import { detectTimers } from "@/lib/timers";
 import { requestWakeLock } from "@/lib/wake-lock";
 import { renderInlineMd } from "@/lib/markdown";
 import { TimerChip } from "./TimerChip";
 import { TimerTray, type ActiveTimer } from "./TimerTray";
+
+// One AudioContext per page, created on the first timer tap (iOS only lets audio start from a gesture).
+let sharedAudio: AudioContext | null = null;
 
 type Props = {
   recipe: Recipe;
@@ -17,6 +20,7 @@ type Props = {
 
 export function CookMode({ recipe, steps }: Props) {
   const router = useRouter();
+  const plannedMealId = useSearchParams().get("pm");
   const [stepIndex, setStepIndex] = useState(0);
   const [timers, setTimers] = useState<ActiveTimer[]>([]);
   const [marking, setMarking] = useState(false);
@@ -62,6 +66,12 @@ export function CookMode({ recipe, steps }: Props) {
   const isLast = stepIndex === steps.length - 1;
 
   const startTimer = useCallback((seconds: number, label: string) => {
+    // iOS only lets audio start from a tap: create/resume the context here, reuse it when the timer ends.
+    try {
+      const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!sharedAudio && AC) sharedAudio = new AC();
+      void sharedAudio?.resume();
+    } catch {}
     const t: ActiveTimer = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       label,
@@ -83,8 +93,10 @@ export function CookMode({ recipe, steps }: Props) {
       navigator.vibrate?.([300, 120, 300]);
     } catch {}
     try {
-      const ctx = new (window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      const ctx =
+        sharedAudio ??
+        new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      void ctx.resume();
       const o = ctx.createOscillator();
       const g = ctx.createGain();
       o.connect(g);
@@ -104,9 +116,12 @@ export function CookMode({ recipe, steps }: Props) {
       await fetch("/api/cook-log", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ recipe_id: recipe.id }),
+        body: JSON.stringify({
+          recipe_id: recipe.id,
+          planned_meal_id: plannedMealId ? Number(plannedMealId) : null,
+        }),
       });
-      router.push(`/recipes/${recipe.id}?cooked=1`);
+      router.push(`/recipes/${recipe.id}?cooked=1${plannedMealId ? `&pm=${plannedMealId}` : ""}`);
     } finally {
       setMarking(false);
     }
@@ -132,7 +147,7 @@ export function CookMode({ recipe, steps }: Props) {
   }
 
   return (
-    <div className="relative z-10 min-h-screen pb-32 flex flex-col">
+    <div className="relative z-10 min-h-screen pb-44 flex flex-col">
       <header className="border-b border-[var(--color-line)] px-4 py-4 sm:px-6">
         <div className="mx-auto flex max-w-3xl items-center justify-between">
           <Link
@@ -167,7 +182,7 @@ export function CookMode({ recipe, steps }: Props) {
         </div>
       </main>
 
-      <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--color-line)] bg-[var(--color-card)]/95 px-4 py-4 backdrop-blur-sm sm:px-6">
+      <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--color-line)] bg-[var(--color-card)]/95 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:px-6">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
           <button
             onClick={() => setStepIndex((i) => Math.max(0, i - 1))}

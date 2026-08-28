@@ -24,7 +24,7 @@ export async function listRecipes(): Promise<Recipe[]> {
   const supa = supabaseAdmin();
   const { data, error } = await supa
     .from("recipes")
-    .select("*")
+    .select("id, title, cuisine, meal_type, difficulty, prep_min, cook_min, servings, rating, tags, source_url, last_made, want_to_try, image_url, source")
     .order("title");
   if (error) throw error;
   return (data ?? []).map(withImageDefault) as Recipe[];

@@ -44,7 +44,7 @@ const UNIT_REGEX_SOURCE = Object.keys(UNIT_MAP)
   .map((u) => u.replace(/\./g, "\\."))
   .join("|");
 
-const TO_TASTE_RE = /\b(to taste|as needed|as desired|for serving|for garnish)\b/i;
+const TO_TASTE_RE = /\b(to taste|as needed|as desired|for serving|to serve|for garnish|to garnish|for the table|if needed)\b/i;
 const OPTIONAL_RE = /\(optional\)|\boptional\b/i;
 const RANGE_SEP_RE = /\s*(?:-|–|to)\s*/;
 const FRACTION_UNICODE: Record<string, number> = {

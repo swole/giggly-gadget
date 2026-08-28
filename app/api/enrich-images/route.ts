@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { findRecipeImage } from "@/lib/image-search";
+import { secretGate } from "@/lib/role.server";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -8,7 +9,9 @@ export const maxDuration = 300;
 // One-off enrichment for already-synced recipes that don't have an image yet.
 // New recipes get auto-enriched at sync time via lib/notion-sync.ts.
 // Add ?force=1 to re-enrich recipes that already have an image.
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const denied = secretGate(req);
+  if (denied) return denied;
   const url = new URL(req.url);
   const force = url.searchParams.get("force") === "1";
 
@@ -39,6 +42,8 @@ export async function POST(req: Request) {
   return NextResponse.json(report);
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
+  const denied = secretGate(req);
+  if (denied) return denied;
   return POST(req);
 }

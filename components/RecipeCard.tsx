@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { thumb } from "@/lib/images";
 import type { Recipe } from "@/lib/recipes";
 import { totalMinutes } from "@/lib/recipes";
 import { WantToTryStar } from "./WantToTryStar";
@@ -14,23 +15,31 @@ export function RecipeCard({
   const visibleTags = recipe.tags.slice(0, 2);
   const cuisineMeal = [recipe.cuisine, recipe.meal_type].filter(Boolean).join(" · ");
 
+  // The star is a button, so it lives beside the link (a button inside an <a> is invalid and
+  // confuses screen readers); the link still covers the whole card visually.
   return (
+    <div className="group relative overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] shadow-[0_2px_8px_rgba(60,30,10,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--color-terra)] hover:shadow-[0_6px_16px_rgba(60,30,10,0.14)]">
+    <div className="absolute right-0 top-0 z-10 h-14 w-14">
+      <div className="relative h-full w-full">
+        <WantToTryStar recipeId={recipe.id} initial={recipe.want_to_try} variant="overlay" />
+      </div>
+    </div>
     <Link
       href={`/recipes/${recipe.id}`}
-      prefetch
+      prefetch={false}
       onClick={(e) => {
         if (onPreview) {
           e.preventDefault();
           onPreview(recipe);
         }
       }}
-      className="group relative block overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] shadow-[0_2px_8px_rgba(60,30,10,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--color-terra)] hover:shadow-[0_6px_16px_rgba(60,30,10,0.14)]"
+      className="block"
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-[var(--color-paper-2)]">
         {recipe.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={recipe.image_url}
+            src={thumb(recipe.image_url, 640)!}
             alt={recipe.title}
             loading="lazy"
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -38,7 +47,6 @@ export function RecipeCard({
         ) : (
           <PlaceholderArt cuisine={recipe.cuisine} mealType={recipe.meal_type} />
         )}
-        <WantToTryStar recipeId={recipe.id} initial={recipe.want_to_try} variant="overlay" />
       </div>
 
       <div className="px-5 pb-5 pt-4">
@@ -90,6 +98,7 @@ export function RecipeCard({
         )}
       </div>
     </Link>
+    </div>
   );
 }
 

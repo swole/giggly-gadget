@@ -17,11 +17,12 @@ type Props = {
 };
 
 export function TimerTray({ timers, onDismiss, onElapsed }: Props) {
-  const [, force] = useState(0);
+  // Ticks once a second while any timer runs; `now` is state so render stays pure.
+  const [now, setNow] = useState(() => performance.now());
 
   useEffect(() => {
     if (timers.length === 0) return;
-    const i = setInterval(() => force((v) => v + 1), 1000);
+    const i = setInterval(() => setNow(performance.now()), 1000);
     return () => clearInterval(i);
   }, [timers.length]);
 
@@ -38,10 +39,10 @@ export function TimerTray({ timers, onDismiss, onElapsed }: Props) {
   if (timers.length === 0) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--color-line)] bg-[var(--color-card)]/95 px-4 py-3 backdrop-blur-sm shadow-[0_-4px_12px_rgba(43,24,16,0.06)] sm:px-6">
+    <div className="fixed inset-x-0 bottom-[calc(4.9rem+env(safe-area-inset-bottom))] z-40 border-t border-[var(--color-line)] bg-[var(--color-card)]/95 px-4 py-3 backdrop-blur-sm shadow-[0_-4px_12px_rgba(43,24,16,0.06)] sm:px-6">
       <div className="mx-auto flex max-w-3xl flex-wrap gap-3">
         {timers.map((t) => {
-          const elapsedMs = performance.now() - t.startedAt;
+          const elapsedMs = now - t.startedAt;
           const remaining = Math.max(0, Math.ceil((t.totalSeconds * 1000 - elapsedMs) / 1000));
           const done = remaining === 0;
           return (

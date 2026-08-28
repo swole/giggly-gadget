@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { isPlanner } from "@/lib/role";
+import { useRole } from "@/components/role/RoleProvider";
 
 type Props = {
   recipeId: string;
@@ -9,8 +11,12 @@ type Props = {
 };
 
 export function WantToTryStar({ recipeId, initial, variant = "overlay" }: Props) {
+  const role = useRole();
   const [flagged, setFlagged] = useState(initial);
   const [pending, setPending] = useState(false);
+
+  // Rating / want-to-try write back to Notion — curation is for the planners.
+  if (!isPlanner(role)) return null;
 
   async function toggle(e: React.MouseEvent) {
     e.preventDefault();

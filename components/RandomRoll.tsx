@@ -96,7 +96,7 @@ export function RandomRoll({ recipes }: { recipes: Recipe[] }) {
         <div className="flex flex-1 flex-col justify-center px-4 py-3 sm:px-5">
           <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-[var(--color-terra)]">
             <span className="text-base leading-none">{die}</span>
-            <span>Tonight's pick</span>
+            <span>Tonight&rsquo;s pick</span>
           </div>
           <div className="font-display mt-1 text-xl leading-tight text-[var(--color-ink)] sm:text-2xl">
             {pick.title}

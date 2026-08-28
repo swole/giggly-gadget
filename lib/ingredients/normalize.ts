@@ -133,8 +133,9 @@ export function buildGroceryList(items: GroceryItemInput[]): GroceryItem[] {
   return out.sort(byCategoryThenName);
 }
 
+// Two decimals: keeps quarters (¼ cabbage) renderable as fractions instead of "0.3".
 function round1(n: number): number {
-  return Math.round(n * 10) / 10;
+  return Math.round(n * 100) / 100;
 }
 
 const CAT_ORDER = ["produce", "protein", "dairy", "grain", "pantry", "spice", "other"];

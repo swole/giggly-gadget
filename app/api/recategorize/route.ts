@@ -1,13 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { categorize } from "@/lib/ingredients/categorize";
+import { secretGate } from "@/lib/role.server";
 
 export const runtime = "nodejs";
 
 // One-off util: re-run categorize() on all existing ingredients_parsed rows
 // and update their category. Used after improving the category dictionary
 // without needing a full Notion re-sync.
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const denied = secretGate(req);
+  if (denied) return denied;
   const supa = supabaseAdmin();
   const { data, error } = await supa
     .from("ingredients_parsed")
@@ -50,6 +53,8 @@ export async function POST() {
   });
 }
 
-export async function GET() {
-  return POST();
+export async function GET(req: NextRequest) {
+  const denied = secretGate(req);
+  if (denied) return denied;
+  return POST(req);
 }

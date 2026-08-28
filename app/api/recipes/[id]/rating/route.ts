@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { notionClient } from "@/lib/notion";
+import { plannerGate } from "@/lib/role.server";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = plannerGate(req);
+  if (denied) return denied;
   const { id } = await params;
   let value: number;
   try {

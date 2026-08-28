@@ -1,12 +1,11 @@
 {
   "name": "Giggly Gadget",
   "short_name": "Giggly",
-  "description": "What's for dinner?",
+  "description": "What's for dinner? Plan the week, cook from the kitchen view, shop from the list.",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#faf5ea",
-  "theme_color": "#faf5ea",
+  "background_color": "#f3e6ca",
+  "theme_color": "#f3e6ca",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -20,5 +19,17 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "share_target": {
+    "action": "/add",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "id": "/",
+  "scope": "/"
 }

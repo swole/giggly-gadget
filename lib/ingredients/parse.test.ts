@@ -130,3 +130,14 @@ Some intro text.
     expect(items).toHaveLength(2);
   });
 });
+
+describe("serving accompaniments", () => {
+  test("'to serve' / 'to garnish' are unscalable like 'to taste', not warnings", () => {
+    for (const l of ["- steamed rice, to serve", "- coriander, to garnish", "- lime wedges, for the table"]) {
+      const p = parseIngredient(l);
+      expect(p.to_taste).toBe(true);
+      expect(p.scalable).toBe(false);
+    }
+    expect(parseIngredient("- steamed rice, to serve").name).toBe("steamed rice");
+  });
+});

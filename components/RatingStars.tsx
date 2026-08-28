@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { isPlanner } from "@/lib/role";
+import { useRole } from "@/components/role/RoleProvider";
 
 type Props = {
   recipeId: string;
@@ -11,9 +13,13 @@ type Props = {
 // top star (or "clear") resets to unrated. Writes through to Supabase + Notion
 // via /api/recipes/[id]/rating, mirroring the Want to Try toggle.
 export function RatingStars({ recipeId, initial }: Props) {
+  const role = useRole();
   const [rating, setRating] = useState(initial ?? 0);
   const [hover, setHover] = useState(0);
   const [pending, setPending] = useState(false);
+
+  // Rating / want-to-try write back to Notion — curation is for the planners.
+  if (!isPlanner(role)) return null;
 
   async function save(value: number) {
     if (pending) return;

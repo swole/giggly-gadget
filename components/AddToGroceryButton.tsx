@@ -2,12 +2,16 @@
 
 import { useState } from "react";
 
+import type { Eaters } from "@/lib/portions";
+
 type Props = {
   recipeId: string;
   scaleFactor: number;
+  /** Household mode: server applies the per-category split instead of scale_factor. */
+  eaters?: Eaters;
 };
 
-export function AddToGroceryButton({ recipeId, scaleFactor }: Props) {
+export function AddToGroceryButton({ recipeId, scaleFactor, eaters }: Props) {
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [info, setInfo] = useState<{ added: number; merged: number } | null>(null);
 
@@ -17,7 +21,7 @@ export function AddToGroceryButton({ recipeId, scaleFactor }: Props) {
       const res = await fetch("/api/grocery/add", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ recipe_id: recipeId, scale_factor: scaleFactor }),
+        body: JSON.stringify({ recipe_id: recipeId, scale_factor: scaleFactor, eaters }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();

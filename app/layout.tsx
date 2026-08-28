@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Inter_Tight } from "next/font/google";
 import "./globals.css";
+import { getRole } from "@/lib/role.server";
+import { RoleProvider } from "@/components/role/RoleProvider";
+import { RolePicker } from "@/components/role/RolePicker";
+import { TabBar } from "@/components/nav/TabBar";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -30,26 +34,30 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#faf5ea",
+  themeColor: "#f3e6ca",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const role = await getRole();
   return (
     <html
       lang="en"
       className={`${fraunces.variable} ${interTight.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-[var(--color-paper)] text-[var(--color-body)] selection:bg-[var(--color-clay)]/30">
-        {children}
+        <RoleProvider role={role}>
+          {/* bottom padding clears the tab bar + home indicator */}
+          <div className="pb-[calc(4.25rem+env(safe-area-inset-bottom))]">{children}</div>
+          <TabBar />
+          <RolePicker />
+        </RoleProvider>
       </body>
     </html>
   );

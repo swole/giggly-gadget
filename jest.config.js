@@ -6,4 +6,5 @@ module.exports = {
   },
   testMatch: ["**/?(*.)+(test).ts"],
   moduleFileExtensions: ["ts", "tsx", "js", "jsx"],
+  moduleNameMapper: { "^@/(.*)$": "<rootDir>/$1" },
 };

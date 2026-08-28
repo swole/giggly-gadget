@@ -1,11 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { secretGate } from "@/lib/role.server";
 
 export const runtime = "nodejs";
 
 // Wipe all image_urls so the next /api/enrich-images run re-fetches everything
 // against the current image-search strategy. Used after switching providers.
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const denied = secretGate(req);
+  if (denied) return denied;
   const supa = supabaseAdmin();
   const { error, count } = await supa
     .from("recipes")
@@ -15,6 +18,8 @@ export async function POST() {
   return NextResponse.json({ ok: true, cleared: count ?? 0 });
 }
 
-export async function GET() {
-  return POST();
+export async function GET(req: NextRequest) {
+  const denied = secretGate(req);
+  if (denied) return denied;
+  return POST(req);
 }

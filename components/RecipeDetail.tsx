@@ -13,6 +13,11 @@ import { AddToGroceryButton } from "./AddToGroceryButton";
 import { WantToTryStar } from "./WantToTryStar";
 import { RatingStars } from "./RatingStars";
 import { renderInlineMd } from "@/lib/markdown";
+import { eatersFactor, parseEaters, EATERS_LABEL } from "@/lib/portions";
+import { isPlanner } from "@/lib/role";
+import { useRole } from "@/components/role/RoleProvider";
+import { PlanThisButton } from "@/components/plan/PlanThisSheet";
+import { detectVideo } from "@/lib/extract/video";
 
 type Props = {
   recipe: Recipe;
@@ -22,6 +27,7 @@ type Props = {
 export function RecipeDetail({ recipe, ingredients }: Props) {
   const search = useSearchParams();
   const justCooked = search.get("cooked") === "1";
+  const justCreated = search.get("new") === "1";
   const [showCookedToast, setShowCookedToast] = useState(justCooked);
 
   useEffect(() => {
@@ -31,12 +37,18 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
     }
   }, [showCookedToast]);
 
-  const [mode, setMode] = useState<ScaleMode>(() => ({
-    kind: "servings",
-    target: recipe.servings && recipe.servings > 0 ? recipe.servings : 2,
-  }));
+  // Arriving from the planner/kitchen: ?eaters=johnny&pm=<planned_meal_id>
+  const eatersParam = parseEaters(search.get("eaters"));
+  const plannedMealId = search.get("pm");
+  const role = useRole();
+  const curator = isPlanner(role); // rating + want-to-try write to Notion; the helper does not see them
+
+  const [mode, setMode] = useState<ScaleMode>(() => ({ kind: "eaters", eaters: eatersParam ?? "both" }));
 
   const factor = scaleFactor(recipe.servings, mode);
+  // Per-line multiplier: household mode splits by ingredient category; other modes are uniform.
+  const lineFactor = (ing: ParsedIngredientRow) =>
+    mode.kind === "eaters" ? eatersFactor(mode.eaters, ing.category) : factor;
   const total = totalMinutes(recipe);
   const steps = useMemo(
     () => extractMethodSteps(recipe.instructions_md),
@@ -51,10 +63,10 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
         </div>
       )}
       <Link
-        href="/"
+        href={plannedMealId ? "/" : "/recipes"}
         className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)] transition-colors hover:text-[var(--color-terra)]"
       >
-        ← Discover
+        {plannedMealId ? "← Kitchen" : "← Recipes"}
       </Link>
 
       {recipe.image_url && (
@@ -93,13 +105,28 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
           {recipe.difficulty && <span>◆ {recipe.difficulty}</span>}
           {recipe.servings && <span>⊙ originally serves {recipe.servings}</span>}
         </div>
-        <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
-          <RatingStars recipeId={recipe.id} initial={recipe.rating} />
-          <WantToTryStar
-            recipeId={recipe.id}
-            initial={recipe.want_to_try}
-            variant="inline"
-          />
+        {curator && (
+          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
+            <RatingStars recipeId={recipe.id} initial={recipe.rating} />
+            <WantToTryStar
+              recipeId={recipe.id}
+              initial={recipe.want_to_try}
+              variant="inline"
+            />
+          </div>
+        )}
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          {curator && <PlanThisButton recipeId={recipe.id} mealType={recipe.meal_type} title={recipe.title} nudge={justCreated} />}
+          {recipe.source_url && (
+            <a
+              href={recipe.source_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--color-line)] px-4 text-[11px] uppercase tracking-[0.18em] text-[var(--color-muted)] transition-colors hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]"
+            >
+              {detectVideo(recipe.source_url)?.platform === "youtube" ? "▶ Watch the video" : detectVideo(recipe.source_url)?.platform === "tiktok" ? "♪ Watch on TikTok" : "↗ Source"}
+            </a>
+          )}
         </div>
       </header>
 
@@ -124,16 +151,20 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
             <IngredientLine
               key={ing.line_index}
               ing={ing}
-              scale={factor}
+              scale={lineFactor(ing)}
               index={i}
             />
           ))}
         </ul>
 
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <AddToGroceryButton recipeId={recipe.id} scaleFactor={factor} />
+          <AddToGroceryButton
+            recipeId={recipe.id}
+            scaleFactor={factor}
+            eaters={mode.kind === "eaters" ? mode.eaters : undefined}
+          />
           <Link
-            href={`/recipes/${recipe.id}/cook`}
+            href={`/recipes/${recipe.id}/cook${plannedMealId ? `?pm=${plannedMealId}` : ""}`}
             className="group flex w-full items-center justify-center gap-2 rounded-lg border-2 border-[var(--color-terra)] bg-[var(--color-card)] px-5 py-3 text-sm font-medium text-[var(--color-terra)] transition-all hover:bg-[var(--color-terra)] hover:text-[var(--color-cream)] hover:shadow-md"
           >
             <span>◷</span>
@@ -179,6 +210,13 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
 }
 
 function ScaleSummary({ mode, factor }: { mode: ScaleMode; factor: number }) {
+  if (mode.kind === "eaters") {
+    return (
+      <span className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-faint)]">
+        {EATERS_LABEL[mode.eaters]}
+      </span>
+    );
+  }
   const label =
     mode.kind === "servings"
       ? `${mode.target} ${mode.target === 1 ? "serving" : "servings"}`

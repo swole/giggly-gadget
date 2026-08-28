@@ -76,7 +76,46 @@ add("produce", [
   "ginger paste", "garlic paste",
 ]);
 
-function singularize(word: string): string {
+// Singapore wet-market and heart-healthy-roster names (2026-08). Keep names as the
+// parser emits them (lower-case, singular-ish); categorize() also tries suffixes.
+add("produce", [
+  "choy sum", "chye sim", "kai lan", "kailan", "gai lan", "xiao bai cai", "long bean", "long beans", "snake bean",
+  "bitter gourd", "bittergourd", "brinjal", "okra", "lady's finger", "ladies finger", "daikon", "white radish",
+  "capsicum", "red capsicum", "green capsicum", "courgette", "sweetcorn", "baby corn", "snow pea", "snow peas",
+  "bean sprout", "bean sprouts", "king oyster mushroom", "black fungus", "wood ear", "water chestnut",
+  "red chilli", "green chilli", "chilli", "bird's eye chilli", "dried chilli", "torch ginger", "daun kesum", "laksa leaf",
+  "curry leaf", "curry leaves", "kaffir lime leaf", "pandan", "fresh turmeric", "mizuna", "rocket",
+  "banana", "berries", "mixed berries", "frozen berries",
+  "dried shiitake", "shiitake", "enoki", "tomatoes", "cherry tomatoes",
+]);
+add("protein", [
+  "mackerel", "saba", "ikan kembung", "sardine", "sardines", "seabass", "sea bass", "red snapper", "snapper",
+  "stingray", "white fish", "white fish fillet", "fish fillet", "fish slice", "fish paste", "grass carp", "batang",
+  "threadfin", "pomfret", "raw prawn", "prawn", "minced prawn", "edamame", "frozen edamame",
+  "firm tofu", "soft tofu", "silken tofu", "tau kwa", "taukwa", "tau pok", "pressed tofu", "beancurd",
+  "egg white", "egg whites", "whole egg", "chicken breast", "minced pork", "dried soybean", "soybean",
+  "black beans", "red kidney beans", "kidney beans", "cannellini beans", "chickpeas", "chickpea",
+  "red lentils", "brown lentils", "lentils", "lentil", "masoor", "hummus", "natural peanut butter", "peanut butter",
+  "walnuts", "walnut", "cashew", "cashews", "roasted cashew", "peanuts", "peanut", "pumpkin seeds", "hemp seeds", "chia seeds",
+]);
+add("grain", [
+  "millet", "pearl barley", "barley", "freekeh", "farro", "rolled oats", "buckwheat noodles", "wholewheat noodles",
+  "wholewheat pasta", "wonton skins", "wonton skin", "multigrain bread", "wholegrain sourdough", "sourdough",
+  "wholegrain roll", "rye bread", "chapati", "glutinous rice", "rice vermicelli", "vermicelli",
+]);
+add("pantry", [
+  "light soy", "dark soy", "doubanjiang", "gochugaru", "ponzu", "belacan", "tamarind pulp", "tamarind",
+  "black vinegar", "white vinegar", "red wine vinegar", "white miso", "sesame paste", "chinese sesame paste",
+  "black sesame paste", "kombu", "wakame", "dried wakame", "nori", "hijiki", "dried hijiki", "cocoa powder",
+  "date syrup", "nuttelex", "olive-oil margarine", "soy milk", "unsweetened soy milk", "oat milk", "almond milk",
+  "light coconut milk", "harissa", "chilli oil", "shiitake water", "dashi", "no-salt-added chopped tomatoes", "chopped tomatoes",
+]);
+add("spice", [
+  "shichimi", "sumac", "garam masala", "amchur", "fenugreek", "mustard seed", "cumin seed", "coriander powder",
+  "chilli powder", "chilli flakes", "dried chilli flakes", "cinnamon stick", "dried oregano", "toasted rice powder",
+]);
+
+export function singularize(word: string): string {
   // crude but effective for the common food plurals in this dataset
   if (word.endsWith("ies") && word.length > 4) return word.slice(0, -3) + "y"; // berries -> berry
   if (word.endsWith("ves") && word.length > 4) return word.slice(0, -3) + "f"; // leaves -> leaf

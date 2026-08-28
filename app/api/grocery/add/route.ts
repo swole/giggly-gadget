@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { currentWeekMonday } from "@/lib/week";
+import { currentWeekMonday, isValidYmd, weekMondayOf } from "@/lib/week";
+import { shopFor } from "@/lib/grocery/shop";
+import { isStaple } from "@/lib/grocery/staples";
+import { eatersFactor, parseEaters } from "@/lib/portions";
+import { roleFromRequest } from "@/lib/role.server";
+import { labelFor } from "@/lib/role";
 
 export const runtime = "nodejs";
 
 type Body = {
   recipe_id: string;
   scale_factor: number;
+  /** Household mode: per-category split (see lib/portions.ts) overrides scale_factor. */
+  eaters?: string | null;
+  /** Week to shop into (defaults to the current week); the kitchen passes the planned meal's week. */
+  week_of?: string | null;
 };
 
 export async function POST(req: NextRequest) {
@@ -21,7 +30,11 @@ export async function POST(req: NextRequest) {
   }
 
   const supa = supabaseAdmin();
-  const week = currentWeekMonday();
+  const week = typeof body.week_of === "string" && isValidYmd(body.week_of) ? weekMondayOf(body.week_of) : currentWeekMonday();
+  const eaters = parseEaters(body.eaters);
+  const { data: stapleRows } = await supa.from("pantry_staples").select("name");
+  const staples = new Set<string>((stapleRows ?? []).map((r) => String(r.name)));
+  const addedBy = labelFor(roleFromRequest(req));
 
   // 1. Load this recipe's parsed ingredients
   const { data: ings, error: ingErr } = await supa
@@ -37,9 +50,9 @@ export async function POST(req: NextRequest) {
     if (!ing.scalable || ing.to_taste) continue;
     if (!ing.name) continue;
 
-    const scaledMin = (ing.qty_min ?? 0) * body.scale_factor;
-    const scaledMax =
-      ing.qty_max !== null ? (ing.qty_max as number) * body.scale_factor : null;
+    const f = eaters ? eatersFactor(eaters, ing.category) : body.scale_factor;
+    const scaledMin = (ing.qty_min ?? 0) * f;
+    const scaledMax = ing.qty_max !== null ? (ing.qty_max as number) * f : null;
 
     // Look for an existing row for (week, name, unit)
     let existingQuery = supa
@@ -80,6 +93,10 @@ export async function POST(req: NextRequest) {
         unit: ing.unit,
         category: ing.category,
         recipe_ids: [body.recipe_id],
+        source: "manual", // the planner never touches what it did not create
+        added_by: addedBy,
+        shop: shopFor(ing.name, ing.category),
+        staple: isStaple(ing.name, staples),
       });
       if (!insErr) added++;
     }

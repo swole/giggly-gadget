@@ -1,10 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { parseIngredients } from "@/lib/ingredients/parse";
+import { secretGate } from "@/lib/role.server";
 
 export const runtime = "nodejs";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
+  const denied = secretGate(req);
+  if (denied) return denied;
   const url = new URL(req.url);
   const title = url.searchParams.get("title");
   if (!title) return NextResponse.json({ error: "?title=... required" }, { status: 400 });

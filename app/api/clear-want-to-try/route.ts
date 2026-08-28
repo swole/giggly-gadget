@@ -1,13 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { notionClient } from "@/lib/notion";
+import { secretGate } from "@/lib/role.server";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 // One-shot endpoint: clear Want to Try on every flagged recipe (Notion + Supabase).
 // Runs sequentially with a tiny gap to respect Notion's 3 req/s rate limit.
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const denied = secretGate(req);
+  if (denied) return denied;
   const supa = supabaseAdmin();
   const notion = notionClient();
 
@@ -43,6 +46,8 @@ export async function POST() {
   return NextResponse.json({ total, cleared, failures });
 }
 
-export async function GET() {
-  return POST();
+export async function GET(req: NextRequest) {
+  const denied = secretGate(req);
+  if (denied) return denied;
+  return POST(req);
 }

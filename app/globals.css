@@ -101,3 +101,38 @@ body::before {
 .animate-slide-up {
   animation: slide-up 0.22s cubic-bezier(0.32, 0.72, 0.32, 1) both;
 }
+
+/* Small celebrations: a cheer pill that pops and emoji that drift up, then vanish. */
+@keyframes cheer-pop {
+  0% { transform: scale(0.6) translateY(6px); opacity: 0; }
+  18% { transform: scale(1.06) translateY(0); opacity: 1; }
+  70% { transform: scale(1) translateY(0); opacity: 1; }
+  100% { transform: scale(0.96) translateY(-6px); opacity: 0; }
+}
+.animate-cheer {
+  animation: cheer-pop 2.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes float-up {
+  0% { transform: translateY(0) rotate(-8deg); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translateY(-120px) rotate(10deg); opacity: 0; }
+}
+.animate-float-up {
+  animation: float-up 1.8s ease-out both;
+}
+/* Grocery check: the row settles as it is ticked. */
+@keyframes tick-in {
+  0% { transform: scale(0.7); }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+.animate-tick-in {
+  animation: tick-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-cheer, .animate-float-up, .animate-tick-in, .animate-slide-up { animation: none; }
+}
+/* Inputs: 16px on touch screens stops iOS zooming the page when a field is focused. */
+@media (pointer: coarse) {
+  input, select, textarea { font-size: 16px; }
+}
