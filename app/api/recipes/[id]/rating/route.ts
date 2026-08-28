@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { notionClient } from "@/lib/notion";
+import { isValidRating, toNotionRatingName } from "@/lib/rating";
 import { plannerGate } from "@/lib/role.server";
 
 export const runtime = "nodejs";
 
-// Notion "Rating" is a select whose option names are the star emoji repeated
-// (⭐ … ⭐⭐⭐⭐⭐). Supabase stores it as an int 1-5. 0 clears both.
+// Ratings are 1–5 in half-star steps (0 clears). Notion "Rating" is a select
+// whose option names are star emoji plus ½ for halves (⭐ … ⭐⭐⭐⭐½ … ⭐⭐⭐⭐⭐);
+// Supabase stores numeric(3,1). lib/rating.ts owns the conversions.
 function notionRatingSelect(value: number) {
-  if (value <= 0) return { select: null };
-  return { select: { name: "⭐".repeat(value) } };
+  const name = toNotionRatingName(value);
+  return name ? { select: { name } } : { select: null };
 }
 
 export async function POST(
@@ -22,12 +24,12 @@ export async function POST(
   let value: number;
   try {
     const body = (await req.json()) as { value: number };
-    value = Math.round(Number(body.value));
+    value = Number(body.value);
   } catch {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
-  if (!Number.isFinite(value) || value < 0 || value > 5) {
-    return NextResponse.json({ error: "value must be 0-5" }, { status: 400 });
+  if (!isValidRating(value)) {
+    return NextResponse.json({ error: "value must be 0 or 1-5 in 0.5 steps" }, { status: 400 });
   }
 
   const supa = supabaseAdmin();

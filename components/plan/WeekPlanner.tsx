@@ -433,6 +433,10 @@ export function WeekPlanner({
           day={picker.day}
           slot={picker.slot}
           recipes={recipes}
+          pairWith={meals
+            .filter((m) => m.planned_for === picker.day && m.slot === picker.slot && m.recipe_id !== null && m.leftover_of === null)
+            .map((m) => byId[m.recipe_id!])
+            .filter((r): r is PlannerRecipe => !!r)}
           leftoverCandidates={meals
             .filter((m): m is PlannedMeal & { recipe_id: string } => m.recipe_id !== null && m.leftover_of === null && m.planned_for <= picker.day && !(m.planned_for === picker.day && m.slot === picker.slot))
             .map((m) => ({ id: m.id, recipe_id: m.recipe_id, planned_for: m.planned_for, slot: m.slot, title: byId[m.recipe_id]?.title ?? "Recipe" }))}

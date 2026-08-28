@@ -7,9 +7,10 @@ import { thumb } from "@/lib/images";
 import { useEffect, useMemo, useState } from "react";
 import type { PlannerRecipe, Slot } from "@/lib/plan/types";
 import { SLOT_LABEL, SLOT_MEAL_TYPES } from "@/lib/plan/types";
+import { suggestPairings } from "@/lib/plan/pairing";
 import { formatDayLong } from "@/lib/week";
 
-type Filter = "slot" | "heart" | "try" | "quick" | "recent";
+type Filter = "slot" | "heart" | "try" | "quick" | "recent" | "pairs";
 
 export type LeftoverCandidate = { id: number; recipe_id: string; planned_for: string; slot: Slot; title: string };
 
@@ -40,6 +41,7 @@ export function RecipePickerSheet({
   slot,
   recipes,
   leftoverCandidates = [],
+  pairWith = [],
   onPick,
   onPickCustom,
   onPickLeftover,
@@ -49,6 +51,8 @@ export function RecipePickerSheet({
   slot: Slot;
   recipes: PlannerRecipe[];
   leftoverCandidates?: LeftoverCandidate[];
+  /** Mains already in this slot — the picker opens on sides/soups that pair with them. */
+  pairWith?: PlannerRecipe[];
   onPick: (recipeId: string) => Promise<void> | void;
   /** Add a one-off item (no recipe behind it), e.g. "White rice". */
   onPickCustom?: (text: string) => Promise<void> | void;
@@ -57,7 +61,7 @@ export function RecipePickerSheet({
 }) {
   const [q, setQ] = useState("");
   const [mode, setMode] = useState<"recipes" | "leftovers">("recipes");
-  const [filters, setFilters] = useState<Set<Filter>>(new Set(["slot"]));
+  const [filters, setFilters] = useState<Set<Filter>>(new Set([pairWith.length > 0 ? "pairs" : "slot"]));
   const [busy, setBusy] = useState<string | null>(null);
   const [recentCustoms] = useState<string[]>(() => (typeof window === "undefined" ? [] : loadRecentCustoms()));
 
@@ -83,7 +87,9 @@ export function RecipePickerSheet({
   const list = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const mealTypes = SLOT_MEAL_TYPES[slot];
-    let out = recipes.filter((r) => {
+    // "Pairs" replaces the slot default: sides/soups that go with what's already planned, best match first.
+    const base = filters.has("pairs") && pairWith.length > 0 ? suggestPairings(pairWith, recipes).map((s) => s.recipe) : recipes;
+    let out = base.filter((r) => {
       if (needle && !r.title.toLowerCase().includes(needle)) return false;
       if (filters.has("slot") && !needle && !(r.meal_type && mealTypes.includes(r.meal_type))) return false;
       if (filters.has("heart") && !(r.tags ?? []).includes("Heart Healthy")) return false;
@@ -98,7 +104,7 @@ export function RecipePickerSheet({
       out = out.slice().sort((a, b) => (b.last_made ?? "").localeCompare(a.last_made ?? ""));
     }
     return out;
-  }, [recipes, q, filters, slot]);
+  }, [recipes, q, filters, slot, pairWith]);
 
   async function pick(id: string) {
     setBusy(id);
@@ -189,6 +195,7 @@ export function RecipePickerSheet({
             className="mt-4 w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)]/50 px-4 py-3 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-faint)] focus:border-[var(--color-terra)] focus:outline-none"
           />
           <div className="scrollbar-none -mx-5 mt-3 flex gap-2 overflow-x-auto px-5 pb-3">
+            {pairWith.length > 0 && chip("pairs", `Pairs with ${pairWith[0].title.length > 22 ? pairWith[0].title.slice(0, 22) + "…" : pairWith[0].title}`)}
             {chip("slot", SLOT_LABEL[slot])}
             {chip("heart", "Heart healthy")}
             {chip("try", "Want to try")}

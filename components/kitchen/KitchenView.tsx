@@ -15,6 +15,7 @@ import { addDays, formatDayLabel, formatDayLong, isoDow, todayInTz, weekMondayOf
 import { isPlanner, labelFor } from "@/lib/role";
 import { useRole } from "@/components/role/RoleProvider";
 import { MarkCookedButton } from "./MarkCookedButton";
+import { RatingStars } from "@/components/RatingStars";
 
 type Props = {
   today: string; // YYYY-MM-DD in SG
@@ -389,6 +390,13 @@ export function MealCard({
               onCooked={celebrate}
             />
           </div>
+          {/* The moment to judge a dish is right after eating it. Planners only (RatingStars hides itself). */}
+          {cooked && !custom && !leftover && meal.recipe_id && (
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-faint)]">Rate it</span>
+              <RatingStars recipeId={meal.recipe_id} initial={recipe?.rating ?? null} compact />
+            </div>
+          )}
         </div>
       </div>
     </article>

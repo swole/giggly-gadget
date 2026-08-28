@@ -1,4 +1,5 @@
 import { notionClient, NOTION_RECIPES_DATA_SOURCE_ID } from "./notion";
+import { parseNotionRating } from "./rating";
 import { supabaseAdmin } from "./supabase/server";
 import { blocksToMarkdown } from "./notion-blocks";
 import { parseIngredients } from "./ingredients/parse";
@@ -55,11 +56,10 @@ function getRichText(p: AnyProp, key: string): string {
 
 function parseRating(raw: string | null): number | null {
   if (!raw) return null;
-  const m = raw.match(/(\d)/);
-  if (m) return parseInt(m[1], 10);
-  // count stars
-  const stars = (raw.match(/[★⭐]/g) || []).length;
-  return stars > 0 ? stars : null;
+  const starred = parseNotionRating(raw); // ⭐⭐⭐½ → 3.5
+  if (starred !== null) return starred;
+  const m = raw.match(/(\d(?:\.5)?)/); // options named "3" / "3.5"
+  return m ? Math.min(parseFloat(m[1]), 5) : null;
 }
 
 // Containers whose children are part of the recipe text (a toggle "Ingredients", columns, synced blocks,
