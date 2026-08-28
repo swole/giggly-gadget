@@ -106,7 +106,8 @@ export function usePlannedMeals(
       const tempId = -Date.now();
       const optimistic: PlannedMeal = {
         id: tempId,
-        recipe_id: input.recipe_id,
+        recipe_id: input.recipe_id ?? null,
+        custom_text: input.custom_text ?? null,
         planned_for: input.planned_for,
         week_of: weekMondayOf(input.planned_for),
         slot: input.slot,

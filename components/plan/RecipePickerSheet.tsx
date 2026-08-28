@@ -13,12 +13,35 @@ type Filter = "slot" | "heart" | "try" | "quick" | "recent";
 
 export type LeftoverCandidate = { id: number; recipe_id: string; planned_for: string; slot: Slot; title: string };
 
+// One-off items the household adds again and again ("White rice") — remembered per device.
+const RECENT_CUSTOMS_KEY = "gg-recent-customs-v1";
+
+function loadRecentCustoms(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_CUSTOMS_KEY);
+    const arr = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string").slice(0, 8) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function rememberCustom(text: string) {
+  try {
+    const next = [text, ...loadRecentCustoms().filter((x) => x.toLowerCase() !== text.toLowerCase())].slice(0, 8);
+    localStorage.setItem(RECENT_CUSTOMS_KEY, JSON.stringify(next));
+  } catch {
+    /* private mode — the add still works */
+  }
+}
+
 export function RecipePickerSheet({
   day,
   slot,
   recipes,
   leftoverCandidates = [],
   onPick,
+  onPickCustom,
   onPickLeftover,
   onClose,
 }: {
@@ -27,6 +50,8 @@ export function RecipePickerSheet({
   recipes: PlannerRecipe[];
   leftoverCandidates?: LeftoverCandidate[];
   onPick: (recipeId: string) => Promise<void> | void;
+  /** Add a one-off item (no recipe behind it), e.g. "White rice". */
+  onPickCustom?: (text: string) => Promise<void> | void;
   onPickLeftover?: (plannedMealId: number, recipeId: string) => Promise<void> | void;
   onClose: () => void;
 }) {
@@ -34,6 +59,7 @@ export function RecipePickerSheet({
   const [mode, setMode] = useState<"recipes" | "leftovers">("recipes");
   const [filters, setFilters] = useState<Set<Filter>>(new Set(["slot"]));
   const [busy, setBusy] = useState<string | null>(null);
+  const [recentCustoms] = useState<string[]>(() => (typeof window === "undefined" ? [] : loadRecentCustoms()));
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -77,6 +103,17 @@ export function RecipePickerSheet({
   async function pick(id: string) {
     setBusy(id);
     await onPick(id);
+    setBusy(null);
+    onClose();
+  }
+
+  async function pickCustom(text: string) {
+    if (!onPickCustom) return;
+    const t = text.trim().slice(0, 80);
+    if (!t) return;
+    setBusy(`custom:${t}`);
+    await onPickCustom(t);
+    rememberCustom(t);
     setBusy(null);
     onClose();
   }
@@ -158,6 +195,21 @@ export function RecipePickerSheet({
             {chip("quick", "≤ 30 min")}
             {chip("recent", "Recent")}
           </div>
+          {onPickCustom && !q.trim() && recentCustoms.length > 0 && (
+            <div className="scrollbar-none -mx-5 flex items-center gap-2 overflow-x-auto px-5 pb-3">
+              <span className="shrink-0 text-[9px] uppercase tracking-[0.16em] text-[var(--color-faint)]">One-offs</span>
+              {recentCustoms.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => void pickCustom(t)}
+                  disabled={busy !== null}
+                  className="shrink-0 rounded-full border border-dashed border-[var(--color-line)] bg-[var(--color-paper)]/30 px-3 py-1 text-[11px] text-[var(--color-body)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)] disabled:opacity-60"
+                >
+                  {busy === `custom:${t}` ? "…" : `+ ${t}`}
+                </button>
+              ))}
+            </div>
+          )}
           </>
           )}
         </div>
@@ -181,8 +233,11 @@ export function RecipePickerSheet({
                 </button>
               </li>
             ))}
-          {mode === "recipes" && list.length === 0 && (
+          {mode === "recipes" && list.length === 0 && !(onPickCustom && q.trim().length >= 2) && (
             <li className="px-3 py-10 text-center text-sm text-[var(--color-faint)]">No recipes match.</li>
+          )}
+          {mode === "recipes" && list.length === 0 && onPickCustom && q.trim().length >= 2 && (
+            <li className="px-3 pb-2 pt-6 text-center text-sm text-[var(--color-faint)]">No recipes match — add it as a one-off instead:</li>
           )}
           {mode === "recipes" && list.map((r) => {
             const mins = (r.prep_min ?? 0) + (r.cook_min ?? 0);
@@ -215,6 +270,28 @@ export function RecipePickerSheet({
               </li>
             );
           })}
+          {mode === "recipes" && onPickCustom && q.trim().length >= 2 && (
+            <li>
+              <button
+                onClick={() => void pickCustom(q)}
+                disabled={busy !== null}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-[var(--color-paper)]/60 disabled:opacity-60"
+              >
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-dashed border-[var(--color-line)] bg-[var(--color-paper)]/30 text-lg" aria-hidden>
+                  ✎
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-display text-base text-[var(--color-ink)]">
+                    Add &ldquo;{q.trim().slice(0, 80)}&rdquo; as a one-off
+                  </span>
+                  <span className="block text-[11px] text-[var(--color-muted)]">no recipe — just a line for the cook, no shopping</span>
+                </span>
+                <span className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-terra)]">
+                  {busy === `custom:${q.trim().slice(0, 80)}` ? "…" : "Add"}
+                </span>
+              </button>
+            </li>
+          )}
         </ul>
       </div>
     </div>

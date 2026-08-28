@@ -18,7 +18,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ week_of: weekOf, meals });
 }
 
-/** POST /api/plan/meals  { planned_for, slot, recipe_id, eaters?, note?, leftover_of? } → { meal } */
+/** POST /api/plan/meals  { planned_for, slot, recipe_id | custom_text, eaters?, note?, leftover_of? } → { meal }
+ *  recipe_id plans a recipe; custom_text plans a one-off ("White rice") with no recipe behind it. */
 export async function POST(req: NextRequest) {
   let body: Partial<NewPlannedMeal>;
   try {
@@ -28,8 +29,16 @@ export async function POST(req: NextRequest) {
   }
   const slot = parseSlot(body.slot);
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!isValidYmd(body.planned_for) || !slot || typeof body.recipe_id !== "string" || !UUID.test(body.recipe_id)) {
-    return NextResponse.json({ error: "planned_for, slot and a valid recipe_id are required" }, { status: 400 });
+  const customText = typeof body.custom_text === "string" ? body.custom_text.trim() : null;
+  const hasRecipe = typeof body.recipe_id === "string" && UUID.test(body.recipe_id);
+  if (!isValidYmd(body.planned_for) || !slot || (!hasRecipe && !customText) || (hasRecipe && customText)) {
+    return NextResponse.json({ error: "planned_for, slot and exactly one of recipe_id / custom_text are required" }, { status: 400 });
+  }
+  if (customText && customText.length > 80) {
+    return NextResponse.json({ error: "custom_text must be 80 characters or fewer" }, { status: 400 });
+  }
+  if (customText && body.leftover_of != null) {
+    return NextResponse.json({ error: "a one-off item cannot be leftovers" }, { status: 400 });
   }
   if (body.eaters !== undefined && body.eaters !== null && !parseEaters(body.eaters)) {
     return NextResponse.json({ error: "bad eaters" }, { status: 400 });
@@ -60,7 +69,8 @@ export async function POST(req: NextRequest) {
     .insert({
       planned_for: body.planned_for,
       slot,
-      recipe_id: body.recipe_id,
+      recipe_id: hasRecipe ? body.recipe_id : null,
+      custom_text: customText,
       eaters,
       position,
       note: body.note ?? null,

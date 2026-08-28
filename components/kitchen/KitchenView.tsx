@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { PlannedMeal, PlannerRecipe, Slot } from "@/lib/plan/types";
-import { SLOTS, SLOT_LABEL } from "@/lib/plan/types";
+import { mealTitle, SLOTS, SLOT_LABEL } from "@/lib/plan/types";
 import { usePlannedMeals } from "@/lib/plan/usePlannedMeals";
 import { EATERS_SHORT, portionNote } from "@/lib/portions";
 import { addDays, formatDayLabel, formatDayLong, isoDow, todayInTz, weekMondayOf } from "@/lib/week";
@@ -102,7 +102,7 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {} }
                 <SlotHeading slot={slot} />
                 <div className="mt-2 space-y-3">
                   {ms.map((m) => (
-                    <MealCard key={m.id} meal={m} recipe={recipes[m.recipe_id]} big />
+                    <MealCard key={m.id} meal={m} recipe={m.recipe_id ? recipes[m.recipe_id] : undefined} big />
                   ))}
                 </div>
               </section>
@@ -137,11 +137,11 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {} }
           <div className="mt-3 space-y-2">
             {tomorrowMeals.map((m) => (
               <div key={m.id}>
-                <MealCard meal={m} recipe={recipes[m.recipe_id]} />
-                {m.leftover_of === null && (hintsByRecipe[m.recipe_id]?.length ?? 0) > 0 && (
+                <MealCard meal={m} recipe={m.recipe_id ? recipes[m.recipe_id] : undefined} />
+                {m.leftover_of === null && m.recipe_id !== null && (hintsByRecipe[m.recipe_id]?.length ?? 0) > 0 && (
                   <div className="mx-2 -mt-1 rounded-b-xl border border-t-0 border-[var(--color-mustard)]/40 bg-[var(--color-mustard)]/10 px-3 py-2 text-xs text-[var(--color-ink)]">
                     <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-terra-dark)]">Tonight</span>
-                    {hintsByRecipe[m.recipe_id].join(" · ")}
+                    {hintsByRecipe[m.recipe_id!].join(" · ")}
                   </div>
                 )}
               </div>
@@ -174,13 +174,13 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {} }
                           <span className="w-14 shrink-0 text-[10px] uppercase tracking-[0.14em] text-[var(--color-faint)]">
                             {SLOT_ABBR[m.slot]}
                           </span>
-                          <Link
-                            href={`/recipes/${m.recipe_id}?eaters=${m.eaters}&pm=${m.id}`}
-                            className="line-clamp-2 text-[var(--color-ink)] hover:text-[var(--color-terra)]"
+                          <MaybeLink
+                            href={m.recipe_id === null ? null : `/recipes/${m.recipe_id}?eaters=${m.eaters}&pm=${m.id}`}
+                            className={`line-clamp-2 text-[var(--color-ink)] ${m.recipe_id === null ? "" : "hover:text-[var(--color-terra)]"}`}
                           >
                             {m.leftover_of !== null && <span className="text-[var(--color-muted)]">Leftovers · </span>}
-                            {recipes[m.recipe_id]?.title ?? "Recipe"}
-                          </Link>
+                            {mealTitle(m, recipes)}
+                          </MaybeLink>
                           <span className="shrink-0 text-[10px] text-[var(--color-faint)]">{EATERS_SHORT[m.eaters]}</span>
                         </li>
                       ))}
@@ -264,6 +264,12 @@ function EmptyDay({ planner, sunday }: { planner: boolean; sunday: boolean }) {
 }
 
 const SLOT_ABBR: Record<Slot, string> = { breakfast: "Bfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack" };
+
+/** A Link when there is somewhere to go, a plain block otherwise (one-off items have no recipe page). */
+function MaybeLink({ href, ariaLabel, className, children }: { href: string | null; ariaLabel?: string; className?: string; children: React.ReactNode }) {
+  if (href === null) return <span aria-label={ariaLabel} className={className}>{children}</span>;
+  return <Link href={href} aria-label={ariaLabel} className={className}>{children}</Link>;
+}
 const CHEERS = ["Nice one", "Lovely", "That's dinner sorted", "Smells good from here", "Chef's kiss", "Another one down"];
 
 export function MealCard({
@@ -275,7 +281,8 @@ export function MealCard({
   recipe: PlannerRecipe | undefined;
   big?: boolean;
 }) {
-  const title = recipe?.title ?? "Recipe";
+  const custom = meal.recipe_id === null;
+  const title = custom ? (meal.custom_text ?? "One-off") : (recipe?.title ?? "Recipe");
   const href = `/recipes/${meal.recipe_id}?eaters=${meal.eaters}&pm=${meal.id}`;
   const cookHref = `/recipes/${meal.recipe_id}/cook?pm=${meal.id}&eaters=${meal.eaters}`;
   const cooked = !!meal.cooked_at;
@@ -310,37 +317,37 @@ export function MealCard({
         </div>
       )}
       <div className={`flex ${big ? "flex-col sm:flex-row" : "flex-row"}`}>
-        <Link
-          href={href}
-          aria-label={`Open ${title}`}
+        <MaybeLink
+          href={custom ? null : href}
+          ariaLabel={`Open ${title}`}
           className={`relative block shrink-0 overflow-hidden bg-[var(--color-paper-2)] ${
             big ? "h-44 w-full sm:h-auto sm:w-44" : "h-24 w-24"
           }`}
         >
-          {recipe?.image_url ? (
+          {!custom && recipe?.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={thumb(recipe.image_url, big ? 800 : 200)!} alt="" className="h-full w-full object-cover" loading="lazy" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-3xl">🍽️</div>
+            <div className="flex h-full w-full items-center justify-center text-3xl">{custom ? "🥣" : "🍽️"}</div>
           )}
           {cooked && (
             <span className="absolute left-2 top-2 rounded-full bg-[var(--color-sage)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[var(--color-cream)]">
               Cooked
             </span>
           )}
-        </Link>
+        </MaybeLink>
         <div className={`flex min-w-0 flex-1 flex-col ${big ? "p-4 sm:p-5" : "p-3"}`}>
           <div className="flex items-start justify-between gap-3">
-            <Link href={href} className="min-w-0">
+            <MaybeLink href={custom ? null : href} className="min-w-0">
               <h3
-                className={`font-display leading-tight text-[var(--color-ink)] hover:text-[var(--color-terra)] ${
+                className={`font-display leading-tight text-[var(--color-ink)] ${custom ? "" : "hover:text-[var(--color-terra)]"} ${
                   big ? "text-2xl" : "text-base"
                 } ${cooked ? "line-through decoration-[var(--color-sage)]/60" : ""}`}
               >
                 {leftover && <span className="mr-1 text-[var(--color-muted)]">Leftovers ·</span>}
                 {title}
               </h3>
-            </Link>
+            </MaybeLink>
             <span className="shrink-0 rounded-full border border-[var(--color-line)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--color-muted)]">
               {EATERS_SHORT[meal.eaters]}
             </span>
@@ -355,7 +362,7 @@ export function MealCard({
             </p>
           )}
           <div className={`mt-auto flex flex-wrap items-center gap-2 ${big ? "pt-4" : "pt-2"}`}>
-            {big && !cooked && !leftover && (
+            {big && !cooked && !leftover && !custom && (
               <Link
                 href={cookHref}
                 className="inline-flex min-h-11 items-center rounded-full bg-[var(--color-terra)] px-4 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--color-cream)] shadow-sm transition-all hover:bg-[var(--color-terra-dark)] active:scale-[0.97]"
@@ -363,14 +370,16 @@ export function MealCard({
                 Cook ▸
               </Link>
             )}
-            <Link
-              href={href}
-              className={`inline-flex items-center rounded-full border border-[var(--color-line)] font-medium uppercase tracking-[0.16em] text-[var(--color-ink)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)] ${
-                big ? "min-h-11 px-4 text-[11px]" : "min-h-9 px-3 text-[10px]"
-              }`}
-            >
-              {big ? "Recipe" : "Open recipe"}
-            </Link>
+            {!custom && (
+              <Link
+                href={href}
+                className={`inline-flex items-center rounded-full border border-[var(--color-line)] font-medium uppercase tracking-[0.16em] text-[var(--color-ink)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)] ${
+                  big ? "min-h-11 px-4 text-[11px]" : "min-h-9 px-3 text-[10px]"
+                }`}
+              >
+                {big ? "Recipe" : "Open recipe"}
+              </Link>
+            )}
             <MarkCookedButton
               recipeId={meal.recipe_id}
               plannedMealId={meal.id}

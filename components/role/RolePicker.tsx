@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { ROLES, ROLE_LABEL, type Role } from "@/lib/role";
 import { useRole } from "./RoleProvider";
@@ -34,10 +34,30 @@ function useStandalone(): boolean {
   );
 }
 
-/** Full-screen first-visit picker. Renders nothing once a role is stored. */
+/** Full-screen first-visit picker. Renders nothing once a role is stored.
+ *  A shared link can carry ?as=helper: a browser with no role yet (e.g. WhatsApp's
+ *  in-app browser opening Shallaine's week link) becomes the helper without the picker.
+ *  A device that already picked keeps its role — the param never overrides. */
 export function RolePicker() {
   const role = useRole();
+  const router = useRouter();
+  const wantsHelper = useSyncExternalStore(
+    noop,
+    () => new URLSearchParams(window.location.search).get("as") === "helper",
+    () => false,
+  );
+  const [autoFailed, setAutoFailed] = useState(false);
+
+  useEffect(() => {
+    if (role || !wantsHelper || autoFailed) return;
+    void setRole("helper").then((ok) => {
+      if (ok) router.refresh();
+      else setAutoFailed(true); // fall back to the picker
+    });
+  }, [role, wantsHelper, autoFailed, router]);
+
   if (role) return null;
+  if (wantsHelper && !autoFailed) return null; // no picker flash while the helper cookie lands
   return <RoleSheet title="Who's in the kitchen?" subtitle="Pick once. This phone will remember." firstVisit />;
 }
 

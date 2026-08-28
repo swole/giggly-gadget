@@ -26,10 +26,20 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
-  if (!body.recipe_id || !UUID.test(body.recipe_id)) {
-    return NextResponse.json({ error: "missing recipe_id" }, { status: 400 });
-  }
   const plannedMealId = Number.isInteger(body.planned_meal_id) ? Number(body.planned_meal_id) : null;
+  // One-off plan items ("White rice") have no recipe: only the planned meal's cooked
+  // stamp applies — no cook_log row, no last_made.
+  if (!body.recipe_id || !UUID.test(body.recipe_id)) {
+    if (!plannedMealId) return NextResponse.json({ error: "missing recipe_id" }, { status: 400 });
+    const supa = supabaseAdmin();
+    const cookedBy = body.cooked_by ?? labelFor(roleFromRequest(req));
+    const patch = body.undo
+      ? { cooked_at: null, cooked_by: null }
+      : { cooked_at: new Date().toISOString(), cooked_by: cookedBy };
+    const { error } = await supa.from("planned_meals").update(patch).eq("id", plannedMealId).is("recipe_id", null);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, undone: !!body.undo });
+  }
   const supa = supabaseAdmin();
 
   if (body.undo) {

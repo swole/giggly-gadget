@@ -16,6 +16,6 @@ export default async function Home() {
   ]);
   const byId: Record<string, PlannerRecipe> = {};
   for (const r of recipes) byId[r.id] = r;
-  const { hintsByRecipe } = await analyseRecipes(Array.from(new Set(meals.map((m) => m.recipe_id))));
+  const { hintsByRecipe } = await analyseRecipes(Array.from(new Set(meals.map((m) => m.recipe_id).filter((id): id is string => id !== null))));
   return <KitchenView today={today} initialMeals={meals} recipes={byId} hintsByRecipe={hintsByRecipe} />;
 }

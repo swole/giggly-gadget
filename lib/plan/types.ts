@@ -24,10 +24,12 @@ export function parseSlot(v: string | null | undefined): Slot | null {
   return (SLOTS as readonly string[]).includes(v) ? (v as Slot) : null;
 }
 
-/** One row of planned_meals, as stored. week_of is generated in Postgres. */
+/** One row of planned_meals, as stored. week_of is generated in Postgres.
+ *  Carries EITHER a recipe_id OR custom_text (a one-off like "White rice"). */
 export type PlannedMeal = {
   id: number;
-  recipe_id: string;
+  recipe_id: string | null;
+  custom_text: string | null;
   planned_for: string; // YYYY-MM-DD
   week_of: string; // YYYY-MM-DD, Monday
   slot: Slot;
@@ -41,6 +43,13 @@ export type PlannedMeal = {
   cooked_by: string | null;
   leftover_of: number | null;
 };
+
+/** Display title for a planned meal, recipe or one-off. */
+export function mealTitle(m: Pick<PlannedMeal, "recipe_id" | "custom_text">, byId: Record<string, { title: string }> | Map<string, { title: string }>): string {
+  if (m.recipe_id === null) return m.custom_text ?? "One-off";
+  const r = byId instanceof Map ? byId.get(m.recipe_id) : byId[m.recipe_id];
+  return r?.title ?? "Recipe";
+}
 
 /** What the planner and kitchen need to know about a recipe. Kept small for the wire. */
 export type PlannerRecipe = Pick<
@@ -63,7 +72,9 @@ export type PlannerRecipe = Pick<
 export type NewPlannedMeal = {
   planned_for: string;
   slot: Slot;
-  recipe_id: string;
+  /** Exactly one of recipe_id / custom_text. */
+  recipe_id?: string | null;
+  custom_text?: string | null;
   eaters?: Eaters;
   note?: string | null;
   leftover_of?: number | null;

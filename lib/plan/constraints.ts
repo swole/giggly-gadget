@@ -45,12 +45,13 @@ export type ConstraintStatus = { key: string; label: string; count: number; targ
  * oily fish ≥ 3 · chicken ≤ 1 · prawn/seafood ≤ 2 (plant-first is the default; these are the guard rails)
  */
 export function weekConstraintStatus(
-  meals: { recipe_id: string; slot: string; leftover_of: number | null }[],
+  meals: { recipe_id: string | null; slot: string; leftover_of: number | null }[],
   classByRecipe: Record<string, ProteinClass[]>,
 ): ConstraintStatus[] {
   let oily = 0, chicken = 0, shellfish = 0;
   for (const m of meals) {
     if (m.leftover_of !== null) continue; // leftovers do not count twice
+    if (m.recipe_id === null) continue; // one-off items carry no protein class
     const c = new Set(classByRecipe[m.recipe_id] ?? []);
     if (c.has("oily_fish")) oily++;
     if (c.has("chicken")) chicken++;

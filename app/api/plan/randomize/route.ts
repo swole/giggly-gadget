@@ -128,7 +128,10 @@ export async function POST(req: NextRequest) {
     recipes,
     filters,
     classByRecipe: analysis.classByRecipe,
-    keepMeals: meals.map((m) => ({ recipe_id: m.recipe_id, slot: m.slot, leftover_of: m.leftover_of })),
+    // one-off items (recipe_id null) have no protein class and cannot repeat a recipe
+    keepMeals: meals
+      .filter((m): m is PlannedMeal & { recipe_id: string } => m.recipe_id !== null)
+      .map((m) => ({ recipe_id: m.recipe_id, slot: m.slot, leftover_of: m.leftover_of })),
     today: todayInTz(),
   });
 

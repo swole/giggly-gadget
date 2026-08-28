@@ -9,7 +9,7 @@ import { thumb } from "@/lib/images";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { NewPlannedMeal, PlannedMeal, PlannerRecipe, Slot } from "@/lib/plan/types";
-import { SLOT_LABEL } from "@/lib/plan/types";
+import { mealTitle, SLOT_LABEL } from "@/lib/plan/types";
 import { usePlannedMeals } from "@/lib/plan/usePlannedMeals";
 import { EATERS_SHORT, nextEaters } from "@/lib/portions";
 import { addDays, formatDayLabel, formatWeekRange, isoDow, weekDates } from "@/lib/week";
@@ -18,6 +18,7 @@ import { useRole } from "@/components/role/RoleProvider";
 import { RecipePickerSheet } from "./RecipePickerSheet";
 import { WeekActionsMenu } from "./WeekActionsMenu";
 import { RandomizeSheet, loadSavedTheme, type RollScope } from "./RandomizeSheet";
+import { ShareWeekButton } from "./ShareWeekButton";
 import { Die } from "./Die";
 import type { RollFilters } from "@/lib/plan/randomize";
 import { weekConstraintStatus, type ProteinClass } from "@/lib/plan/constraints";
@@ -122,7 +123,7 @@ export function WeekPlanner({
     flash(j.added_ids);
     const added = j.added[0];
     showRollToast({
-      text: `Rolled ${byId[added.recipe_id]?.title ?? "a dish"}`,
+      text: `Rolled ${mealTitle(added, byId)}`,
       theme,
       again: () => void rerollIds(j.added_ids, theme),
       undo: () => void remove(added.id),
@@ -140,7 +141,7 @@ export function WeekPlanner({
     flash(j.added_ids);
     const added = j.added[0];
     showRollToast({
-      text: `Rolled ${byId[added.recipe_id]?.title ?? "a dish"}`,
+      text: `Rolled ${mealTitle(added, byId)}`,
       theme,
       again: () => void rerollIds(j.added_ids, theme),
       undo: () => void remove(added.id),
@@ -150,6 +151,7 @@ export function WeekPlanner({
 
   /** ⋯ menu on a meal: swap it for another idea in the same slot. */
   async function pickAnother(m: PlannedMeal) {
+    if (m.recipe_id === null) return; // one-off items have no themed pool to swap from
     const original: NewPlannedMeal = {
       planned_for: m.planned_for,
       slot: m.slot,
@@ -170,7 +172,7 @@ export function WeekPlanner({
     flash(j.added_ids);
     const added = j.added[0];
     showRollToast({
-      text: `Swapped for ${byId[added.recipe_id]?.title ?? "a dish"}`,
+      text: `Swapped for ${mealTitle(added, byId)}`,
       theme,
       again: () => void rerollIds(j.added_ids, theme),
       undo: () => {
@@ -184,7 +186,7 @@ export function WeekPlanner({
   }
 
   async function removeWithUndo(m: PlannedMeal) {
-    const title = byId[m.recipe_id]?.title ?? "Recipe";
+    const title = mealTitle(m, byId);
     const ok = await remove(m.id);
     if (ok) {
       setRollToast(null);
@@ -196,7 +198,7 @@ export function WeekPlanner({
     if (!undo) return;
     const m = undo.meal;
     setUndo(null);
-    await add({ planned_for: m.planned_for, slot: m.slot, recipe_id: m.recipe_id, eaters: m.eaters, note: m.note, leftover_of: m.leftover_of });
+    await add({ planned_for: m.planned_for, slot: m.slot, recipe_id: m.recipe_id, custom_text: m.custom_text, eaters: m.eaters, note: m.note, leftover_of: m.leftover_of });
   }
 
 
@@ -255,6 +257,7 @@ export function WeekPlanner({
               >
                 <Die size={13} /> Randomize
               </button>
+              <ShareWeekButton weekOf={weekOf} meals={meals} byId={byId} />
               <Link href={`/plan/print?week=${weekOf}`} className="btn-quiet px-3 py-1.5 text-[10px] uppercase tracking-[0.18em]">
                 Print
               </Link>
@@ -416,7 +419,7 @@ export function WeekPlanner({
       {noteFor && (
         <NoteSheet
           meal={noteFor}
-          title={byId[noteFor.recipe_id]?.title ?? "Recipe"}
+          title={mealTitle(noteFor, byId)}
           onClose={() => setNoteFor(null)}
           onSave={async (note) => {
             await patch(noteFor.id, { note });
@@ -431,10 +434,13 @@ export function WeekPlanner({
           slot={picker.slot}
           recipes={recipes}
           leftoverCandidates={meals
-            .filter((m) => m.leftover_of === null && m.planned_for <= picker.day && !(m.planned_for === picker.day && m.slot === picker.slot))
+            .filter((m): m is PlannedMeal & { recipe_id: string } => m.recipe_id !== null && m.leftover_of === null && m.planned_for <= picker.day && !(m.planned_for === picker.day && m.slot === picker.slot))
             .map((m) => ({ id: m.id, recipe_id: m.recipe_id, planned_for: m.planned_for, slot: m.slot, title: byId[m.recipe_id]?.title ?? "Recipe" }))}
           onPick={async (recipeId) => {
             await add({ planned_for: picker.day, slot: picker.slot, recipe_id: recipeId });
+          }}
+          onPickCustom={async (text) => {
+            await add({ planned_for: picker.day, slot: picker.slot, custom_text: text });
           }}
           onPickLeftover={async (plannedMealId, recipeId) => {
             await add({ planned_for: picker.day, slot: picker.slot, recipe_id: recipeId, leftover_of: plannedMealId });
@@ -484,8 +490,10 @@ function DayCard({
   bare?: boolean;
 }) {
   // Protein for the day from the heart-healthy recipes' notes (J / L grams). Partial when a recipe has none.
+  // One-off items (no recipe) don't count as missing — they're extras, not mains.
   const protein = meals.reduce(
     (acc, m) => {
+      if (m.recipe_id === null) return acc;
       const p = proteinByRecipe[m.recipe_id];
       if (!p) return { ...acc, missing: acc.missing + 1 };
       if (m.eaters === "johnny") return { ...acc, j: acc.j + p.j };
@@ -548,7 +556,7 @@ function DayCard({
                   <MealChip
                     key={m.id}
                     meal={m}
-                    recipe={byId[m.recipe_id]}
+                    recipe={m.recipe_id ? byId[m.recipe_id] : undefined}
                     canEdit={canEdit}
                     flash={justRolled.has(m.id)}
                     onRemove={() => onRemove(m)}
@@ -618,12 +626,23 @@ function MealChip({
             : "border-[var(--color-line)] bg-[var(--color-card)]"
         } ${pending ? "opacity-60" : ""} ${flash ? "animate-rolled-in" : ""}`}
       >
-        <span className="h-7 w-7 shrink-0 overflow-hidden rounded-full bg-[var(--color-paper-2)]">
-          {recipe?.image_url ? (
+        <span className={`flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full ${meal.recipe_id === null ? "border border-dashed border-[var(--color-line)] bg-[var(--color-paper)]/40 text-[11px] text-[var(--color-muted)]" : "bg-[var(--color-paper-2)]"}`}>
+          {meal.recipe_id === null ? (
+            <span aria-hidden>✎</span>
+          ) : recipe?.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={thumb(recipe.image_url, 64)!} alt="" className="h-full w-full object-cover" loading="lazy" />
           ) : null}
         </span>
+        {meal.recipe_id === null ? (
+          <span
+            className={`line-clamp-2 max-w-[13rem] leading-tight text-[var(--color-ink)] ${cooked ? "line-through" : ""}`}
+            title={meal.custom_text ?? undefined}
+          >
+            {meal.custom_text}
+            {meal.note && <span className="ml-1 text-[var(--color-terra-dark)]" title={meal.note} aria-label="has a note">✎</span>}
+          </span>
+        ) : (
         <Link
           href={`/recipes/${meal.recipe_id}?eaters=${meal.eaters}&pm=${meal.id}`}
           className={`line-clamp-2 max-w-[13rem] leading-tight text-[var(--color-ink)] hover:text-[var(--color-terra)] ${cooked ? "line-through" : ""}`}
@@ -633,6 +652,7 @@ function MealChip({
           {recipe?.title ?? "Recipe"}
           {meal.note && <span className="ml-1 text-[var(--color-terra-dark)]" title={meal.note} aria-label="has a note">✎</span>}
         </Link>
+        )}
         <button
           onClick={canEdit ? onCycleEaters : undefined}
           disabled={!canEdit}
@@ -667,14 +687,16 @@ function MealChip({
             <button role="menuitem" onClick={() => { setMenu(false); onNote(); }} className="block min-h-11 w-full px-4 text-left hover:bg-[var(--color-paper)]/60">
               {meal.note ? "Edit note" : "Add a note for the cook"}
             </button>
-            {!cooked && meal.leftover_of === null && (
+            {!cooked && meal.leftover_of === null && meal.recipe_id !== null && (
               <button role="menuitem" onClick={() => { setMenu(false); onPickAnother(); }} className="block min-h-11 w-full px-4 text-left hover:bg-[var(--color-paper)]/60">
                 <Die size={12} className="mr-1.5 inline-block align-[-1px] text-[var(--color-terra)]" />Pick another
               </button>
             )}
-            <Link role="menuitem" href={`/recipes/${meal.recipe_id}?eaters=${meal.eaters}&pm=${meal.id}`} className="flex min-h-11 w-full items-center px-4 text-left hover:bg-[var(--color-paper)]/60">
-              Open recipe
-            </Link>
+            {meal.recipe_id !== null && (
+              <Link role="menuitem" href={`/recipes/${meal.recipe_id}?eaters=${meal.eaters}&pm=${meal.id}`} className="flex min-h-11 w-full items-center px-4 text-left hover:bg-[var(--color-paper)]/60">
+                Open recipe
+              </Link>
+            )}
             <button role="menuitem" onClick={() => { setMenu(false); onRemove(); }} className="block min-h-11 w-full px-4 text-left text-[var(--color-terra-dark)] hover:bg-[var(--color-paper)]/60">
               Remove from plan
             </button>

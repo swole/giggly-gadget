@@ -1,6 +1,6 @@
 import { getPlannedMealsForWeek, listPlannerRecipes } from "@/lib/plan/queries";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { SLOT_LABEL, type Slot } from "@/lib/plan/types";
+import { mealTitle, SLOT_LABEL, type Slot } from "@/lib/plan/types";
 import { EATERS_SHORT } from "@/lib/portions";
 import { currentWeekMonday, formatDayLong, formatWeekRange, isValidYmd, weekDates, weekMondayOf } from "@/lib/week";
 import { CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/grocery/labels";
@@ -71,7 +71,7 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
                     {ms.filter((m) => m.slot === s).map((m) => (
                       <div key={m.id}>
                         {m.leftover_of !== null && <span className="text-[var(--color-muted)]">Leftovers · </span>}
-                        {byId.get(m.recipe_id)?.title ?? "Recipe"}
+                        {mealTitle(m, byId)}
                         {m.eaters !== "both" && <span className="ml-1 text-[10px] text-[var(--color-muted)]">({EATERS_SHORT[m.eaters]})</span>}
                         {m.note && <div className="text-[10px] italic text-[var(--color-muted)]">{m.note}</div>}
                       </div>

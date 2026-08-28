@@ -15,7 +15,8 @@ export function MarkCookedButton({
   size = "md",
   onCooked,
 }: {
-  recipeId: string;
+  /** null for one-off items — only the planned meal's cooked stamp applies. */
+  recipeId: string | null;
   plannedMealId: number;
   cookedAt: string | null;
   size?: "sm" | "md";
@@ -53,7 +54,7 @@ export function MarkCookedButton({
   async function mark() {
     if (state !== "idle") return;
     setState("busy");
-    const ok = await post({ recipe_id: recipeId, planned_meal_id: plannedMealId });
+    const ok = await post({ ...(recipeId ? { recipe_id: recipeId } : {}), planned_meal_id: plannedMealId });
     if (!ok) return setState("idle");
     try { navigator.vibrate?.(12); } catch {}
     onCooked?.();
@@ -64,7 +65,7 @@ export function MarkCookedButton({
   async function unmark() {
     if (timer.current) clearTimeout(timer.current);
     setState("busy");
-    const ok = await post({ recipe_id: recipeId, planned_meal_id: plannedMealId, undo: true });
+    const ok = await post({ ...(recipeId ? { recipe_id: recipeId } : {}), planned_meal_id: plannedMealId, undo: true });
     setState(ok ? "idle" : "done");
   }
 

@@ -47,7 +47,8 @@ export async function buildWeekGroceries(weekOf: string): Promise<BuildResult> {
     .gte("planned_for", weekOf)
     .lte("planned_for", to);
   if (mErr) throw mErr;
-  const meals = ((mealsData ?? []) as MealRow[]).filter((m) => m.leftover_of === null);
+  // Leftovers carry no shopping; one-off items (custom_text, recipe_id null) have no ingredients.
+  const meals = ((mealsData ?? []) as MealRow[]).filter((m) => m.leftover_of === null && m.recipe_id !== null);
   const recipeIds = Array.from(new Set(meals.map((m) => m.recipe_id)));
 
   // 2. ingredients for those recipes (+ titles for the "no ingredients" report)
