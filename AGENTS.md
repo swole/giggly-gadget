@@ -114,3 +114,4 @@ vercel --prod --yes        # deploy
 | `components/plan/*`, `components/kitchen/*`, `components/nav/TabBar.tsx`, `components/role/*` | UI |
 | `lib/notion-sync.ts`, `lib/notion.ts`, `lib/recipes.ts`, `lib/ingredients/*` | Sync + parsing |
 | `supabase/migrations/0001…0003` | Schema |
+
