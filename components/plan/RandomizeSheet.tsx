@@ -279,7 +279,7 @@ export function RandomizeSheet({
           )}
           {error && <p className="mt-2 text-xs text-[var(--color-terra-dark)]">{error}</p>}
           <p className="mt-3 text-[10px] leading-relaxed text-[var(--color-faint)]">
-            Rolls respect the week&rsquo;s guard rails — oily fish up, chicken and shellfish capped — skip anything cooked, and avoid repeats and dishes made in the last 10 days.
+            Rolls respect the week&rsquo;s guard rails — oily fish up, chicken and shellfish capped — skip anything cooked, avoid repeats and recent dishes, lean into your 4★+ favourites, and never roll anything rated 2★ or below.
           </p>
         </div>
       </div>

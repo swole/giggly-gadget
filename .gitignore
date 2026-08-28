@@ -45,3 +45,5 @@ next-env.d.ts
 # local dev artifacts
 dev.log
 *.log
+
+.env*

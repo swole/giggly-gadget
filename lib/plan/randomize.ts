@@ -40,6 +40,8 @@ export const ROLL_SLOT_MEAL_TYPES: Record<Slot, string[]> = {
 };
 
 export function matchesFilters(r: PlannerRecipe, f: RollFilters): boolean {
+  // The household has spoken: dishes rated 2 or below never roll again.
+  if (r.rating !== null && r.rating <= 2) return false;
   if (f.source && r.source !== f.source) return false;
   if (f.healthy && !(r.tags ?? []).includes("Heart Healthy")) return false;
   if (f.cuisines && f.cuisines.length > 0 && !(r.cuisine && f.cuisines.includes(r.cuisine))) return false;
@@ -159,6 +161,11 @@ export function rollCells(opts: {
       const cls = new Set(classByRecipe[r.id] ?? []);
       if (counts.oily < OILY_FLOOR && cls.has("oily_fish")) w *= 4;
       if (opts.today && r.last_made && daysBetween(opts.today, r.last_made) <= 10) w *= 0.3;
+      // Ratings bite: 4★ 1.5× · 4.5★ 2× · 5★ 2.5×; a 2.5 limps at half weight (≤2 never reaches the pool).
+      if (r.rating !== null) {
+        if (r.rating >= 4) w *= r.rating - 2.5;
+        else if (r.rating === 2.5) w *= 0.5;
+      }
       return w;
     });
 

@@ -32,6 +32,7 @@ export type GroceryRow = {
   shop: Shop | null;
   staple: boolean;
   added_by: string | null;
+  substituted_for: string | null;
 };
 
 type BuildInfo = {
@@ -62,6 +63,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
   const [buildInfo, setBuildInfo] = useState<BuildInfo | null>(null);
   const [buildError, setBuildError] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<number | null>(null);
+  const [subFor, setSubFor] = useState<GroceryRow | null>(null);
   const [live, setLive] = useState<"connecting" | "live" | "reconnecting">("connecting");
   const [justTicked, setJustTicked] = useState<number | null>(null);
   const [doneLine] = useState(() => DONE_LINES[Math.floor(Math.random() * DONE_LINES.length)]);
@@ -473,6 +475,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
                           canConfigure={canBuild}
                           onStaple={(v) => setStaple(row, v)}
                           onRemove={() => removeRow(row)}
+                          onSubstitute={() => { setMenuFor(null); setSubFor(row); }}
                         />
                       ))}
                     </ul>
@@ -483,7 +486,134 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
           })}
         </div>
       )}
+      {subFor && (
+        <SubstituteSheet
+          row={subFor}
+          onClose={() => setSubFor(null)}
+          onApplied={(r) => {
+            setRows((prev) => prev.map((x) => (x.id === r.id ? r : x)));
+            setSubFor(null);
+          }}
+        />
+      )}
     </main>
+  );
+}
+
+type SubOption = { name: string; why: string; qty_note: string | null };
+
+/** "Can't find it" — asks the kitchen brain for 2-3 stall-friendly swaps, one tap applies. */
+function SubstituteSheet({ row, onClose, onApplied }: { row: GroceryRow; onClose: () => void; onApplied: (r: GroceryRow) => void }) {
+  const [options, setOptions] = useState<SubOption[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/grocery/substitute", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ id: row.id, action: "suggest" }),
+        });
+        const j = (await res.json().catch(() => ({}))) as { options?: SubOption[]; error?: string };
+        if (!alive) return;
+        if (!res.ok || !j.options) setError(j.error ?? `Failed (${res.status})`);
+        else setOptions(j.options);
+      } catch {
+        if (alive) setError("No connection — try again.");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [row.id]);
+
+  async function apply(name: string) {
+    setBusy(name);
+    try {
+      const res = await fetch("/api/grocery/substitute", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: row.id, action: "apply", name }),
+      });
+      const j = (await res.json().catch(() => ({}))) as { row?: GroceryRow; error?: string };
+      if (!res.ok || !j.row) {
+        setError(j.error ?? `Failed (${res.status})`);
+        setBusy(null);
+        return;
+      }
+      onApplied(j.row);
+    } catch {
+      setError("No connection — try again.");
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-[var(--color-ink)]/40 backdrop-blur-[2px] sm:items-center"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="sub-title"
+    >
+      <div
+        className="animate-slide-up w-full max-w-md rounded-t-3xl bg-[var(--color-card)] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 shadow-2xl sm:rounded-3xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-baseline justify-between">
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.24em] text-[var(--color-muted)]">Can&rsquo;t find it?</div>
+            <h2 id="sub-title" className="font-display-italic mt-1 text-2xl text-[var(--color-ink)]">
+              Swap {row.substituted_for ?? row.name}
+            </h2>
+          </div>
+          <button onClick={onClose} className="btn-quiet px-3 py-1 text-[10px] uppercase tracking-[0.18em]">
+            Close
+          </button>
+        </div>
+
+        {!options && !error && (
+          <div className="mt-6 flex items-center gap-3 pb-4 text-sm text-[var(--color-muted)]">
+            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-line)] border-t-[var(--color-terra)]" aria-hidden />
+            Thinking of what works instead…
+          </div>
+        )}
+        {error && <p className="mt-5 pb-3 text-sm text-[var(--color-terra-dark)]">{error}</p>}
+
+        {options && (
+          <ul className="mt-4 space-y-2">
+            {options.map((o) => (
+              <li key={o.name}>
+                <button
+                  onClick={() => void apply(o.name)}
+                  disabled={busy !== null}
+                  className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper)]/40 px-4 py-3 text-left transition-all hover:border-[var(--color-terra)] active:scale-[0.99] disabled:opacity-60"
+                >
+                  <span className="min-w-0">
+                    <span className="block font-display text-lg text-[var(--color-ink)]">{o.name}</span>
+                    <span className="block text-xs text-[var(--color-muted)]">
+                      {o.why}
+                      {o.qty_note ? ` · ${o.qty_note}` : ""}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-[10px] uppercase tracking-[0.16em] text-[var(--color-terra)]">
+                    {busy === o.name ? "…" : "Use this"}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {options && (
+          <p className="mt-3 text-[11px] text-[var(--color-faint)]">
+            The list remembers the original, so next week goes back to {row.substituted_for ?? row.name}.
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -496,6 +626,7 @@ function GroceryRowItem({
   canConfigure,
   onStaple,
   onRemove,
+  onSubstitute,
 }: {
   row: GroceryRow;
   justTicked: boolean;
@@ -505,6 +636,7 @@ function GroceryRowItem({
   canConfigure: boolean;
   onStaple: (v: boolean) => void;
   onRemove: () => void;
+  onSubstitute: () => void;
 }) {
   const qtyText =
     row.qty_min === null
@@ -531,6 +663,9 @@ function GroceryRowItem({
             <span className="font-display mr-1.5 tabular-nums text-[var(--color-terra)]">{qtyText}</span>
             {row.unit && <span className="mr-1.5 text-[var(--color-muted)]">{row.unit}</span>}
             <span>{row.name}</span>
+            {row.substituted_for && (
+              <span className="ml-2 text-[10px] text-[var(--color-terra-dark)]">for {row.substituted_for}</span>
+            )}
             {row.staple && (
               <span className="ml-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-faint)]">staple</span>
             )}
@@ -565,6 +700,9 @@ function GroceryRowItem({
           onClick={(e) => e.stopPropagation()}
           role="menu"
         >
+          <button role="menuitem" onClick={onSubstitute} className="block min-h-11 w-full px-4 text-left hover:bg-[var(--color-paper)]/60">
+            <span className="mr-1.5" aria-hidden>🔄</span>Can&rsquo;t find it? Get a swap
+          </button>
           {canConfigure && (
             <button role="menuitem" onClick={() => onStaple(!row.staple)} className="block min-h-11 w-full px-4 text-left hover:bg-[var(--color-paper)]/60">
               {row.staple ? "Not a staple" : "Mark as pantry staple"}

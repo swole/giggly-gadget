@@ -32,6 +32,10 @@ export type ExistingRow = {
   source: "plan" | "manual";
   shop: string | null;
   staple: boolean;
+  /** Original item name when the shopper swapped it ("kailan" on a row renamed to "choy sum").
+   *  A substituted row keeps the ORIGINAL identity for matching, so rebuilds update it
+   *  instead of deleting it and re-inserting the original. */
+  substituted_for?: string | null;
 };
 
 export type RowPatch = Partial<
@@ -64,7 +68,7 @@ export function reconcileGrocery(desired: DesiredRow[], existing: ExistingRow[])
   const res: ReconcileResult = { inserts: [], updates: [], deletes: [], keptManual: 0, unchanged: 0 };
 
   const existingByKey = new Map<string, ExistingRow>();
-  for (const e of existing) existingByKey.set(rowKey(e.name, e.unit), e);
+  for (const e of existing) existingByKey.set(rowKey(e.substituted_for ?? e.name, e.unit), e);
 
   const desiredKeys = new Set<string>();
   for (const d of desired) {
@@ -92,7 +96,7 @@ export function reconcileGrocery(desired: DesiredRow[], existing: ExistingRow[])
   }
 
   for (const e of existing) {
-    const key = rowKey(e.name, e.unit);
+    const key = rowKey(e.substituted_for ?? e.name, e.unit);
     if (desiredKeys.has(key)) continue;
     if (e.source === "plan") res.deletes.push(e.id);
     else res.keptManual++;

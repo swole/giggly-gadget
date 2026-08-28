@@ -77,4 +77,28 @@ describe("reconcileGrocery", () => {
     );
     expect(r.updates[0].patch).toEqual({ category: "pantry", shop: "supermarket", staple: true });
   });
+
+  test("a substituted row keeps the original identity: rebuilds update it, never re-insert the original", () => {
+    const r = reconcileGrocery(
+      [d({ name: "kailan", qty_min: 300, unit: "g" })],
+      [e({ id: 7, name: "choy sum", qty_min: 200, unit: "g", substituted_for: "kailan" })],
+    );
+    expect(r.inserts).toEqual([]); // no fresh "kailan" row
+    expect(r.updates).toEqual([{ id: 7, patch: { qty_min: 300 } }]); // qty flows to the swap
+  });
+
+  test("a substituted row is deleted when the original leaves the plan", () => {
+    const r = reconcileGrocery([], [e({ id: 8, name: "choy sum", qty_min: 200, unit: "g", substituted_for: "kailan" })]);
+    expect(r.deletes).toEqual([8]);
+  });
+
+  test("a substituted row does not shadow a genuine row of its new name", () => {
+    const r = reconcileGrocery(
+      [d({ name: "kailan", qty_min: 300, unit: "g" }), d({ name: "choy sum", qty_min: 150, unit: "g" })],
+      [e({ id: 9, name: "choy sum", qty_min: 200, unit: "g", substituted_for: "kailan" })],
+    );
+    // the sub row matches kailan; choy sum inserts as its own row
+    expect(r.updates).toEqual([{ id: 9, patch: { qty_min: 300 } }]);
+    expect(r.inserts.map((i) => i.name)).toEqual(["choy sum"]);
+  });
 });

@@ -255,4 +255,48 @@ describe("rollCells", () => {
     expect(res.picks.every((p) => p.recipe_id === lydiaHealthyDinner.id)).toBe(true);
     expect(res.pool).toBe(1);
   });
+
+  it("dishes rated ≤ 2 never roll, even as the only slot option", () => {
+    const dud = recipe({ meal_type: "Dinner", rating: 2 });
+    const halfDud = recipe({ meal_type: "Dinner", rating: 1.5 });
+    const res = rollCells({
+      cells: cellsFor(["2026-08-31"], "dinner"),
+      recipes: [dud, halfDud],
+      filters: {},
+      classByRecipe: {},
+      keepMeals: [],
+      rng: seq(0),
+    });
+    expect(res.picks).toEqual([]);
+    expect(res.unfilled).toHaveLength(1);
+    expect(res.pool).toBe(0);
+  });
+
+  it("high ratings tip the draw: a 5★ dish outweighs an unrated one", () => {
+    const star = recipe({ meal_type: "Dinner", rating: 5 }); // weight 2.5
+    const meh = recipe({ meal_type: "Dinner", rating: null }); // weight 1
+    // rng 0.6 → t = 0.6 × 3.5 = 2.1, inside the 5★ dish's 2.5 span regardless of order bias toward first
+    const res = rollCells({
+      cells: cellsFor(["2026-08-31"], "dinner"),
+      recipes: [star, meh],
+      filters: {},
+      classByRecipe: {},
+      keepMeals: [],
+      rng: seq(0.6),
+    });
+    expect(res.picks[0].recipe_id).toBe(star.id);
+  });
+
+  it("a 2.5★ dish limps at half weight but can still roll", () => {
+    const limping = recipe({ meal_type: "Dinner", rating: 2.5 }); // weight 0.5
+    const res = rollCells({
+      cells: cellsFor(["2026-08-31"], "dinner"),
+      recipes: [limping],
+      filters: {},
+      classByRecipe: {},
+      keepMeals: [],
+      rng: seq(0.9),
+    });
+    expect(res.picks[0].recipe_id).toBe(limping.id);
+  });
 });
