@@ -192,19 +192,7 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
         </section>
       )}
 
-      {recipe.source_url && (
-        <div className="mt-12 text-xs text-[var(--color-muted)]">
-          Source:{" "}
-          <a
-            href={recipe.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[var(--color-terra)] underline-offset-4 hover:underline"
-          >
-            {hostnameOf(recipe.source_url)}
-          </a>
-        </div>
-      )}
+      {recipe.source_url && <SourceCta url={recipe.source_url} />}
     </main>
   );
 }
@@ -225,6 +213,48 @@ function ScaleSummary({ mode, factor }: { mode: ScaleMode; factor: number }) {
     <span className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-faint)]">
       {label} · ×{factor.toFixed(2).replace(/\.00$/, "")}
     </span>
+  );
+}
+
+/* The reader has just finished the method — this is the moment to hand them the
+   original video/recipe, so it gets a full CTA card instead of a footnote link. */
+function SourceCta({ url }: { url: string }) {
+  const platform = detectVideo(url)?.platform ?? null;
+  const isVideo = platform !== null;
+  const platformName =
+    platform === "youtube"
+      ? "YouTube"
+      : platform === "tiktok"
+        ? "TikTok"
+        : platform === "instagram"
+          ? "Instagram"
+          : platform === "facebook"
+            ? "Facebook"
+            : null;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group mt-12 flex items-center gap-4 rounded-2xl border-2 border-[var(--color-terra)] bg-[var(--color-card)] p-4 shadow-sm transition-all hover:bg-[var(--color-terra)] hover:shadow-md sm:p-5"
+    >
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--color-terra)] text-lg text-[var(--color-cream)] transition-colors group-hover:bg-[var(--color-cream)] group-hover:text-[var(--color-terra)]">
+        {isVideo ? "▶" : "↗"}
+      </span>
+      <span className="min-w-0">
+        <span className="font-display block text-xl leading-tight text-[var(--color-ink)] transition-colors group-hover:text-[var(--color-cream)]">
+          Learn how to make it
+        </span>
+        <span className="mt-0.5 block text-xs text-[var(--color-muted)] transition-colors group-hover:text-[var(--color-cream)]/85">
+          {isVideo
+            ? `Watch the original video on ${platformName}`
+            : `Read the original recipe at ${hostnameOf(url)}`}
+        </span>
+      </span>
+      <span className="ml-auto shrink-0 text-[var(--color-terra)] transition-all group-hover:translate-x-0.5 group-hover:text-[var(--color-cream)]">
+        →
+      </span>
+    </a>
   );
 }
 
