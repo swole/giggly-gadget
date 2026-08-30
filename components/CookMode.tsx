@@ -35,10 +35,13 @@ export function CookMode({ recipe, steps, ingredients = [] }: Props) {
   // lands back on the same step, not on "Slice the tofu" with a pan on the fire.
   const storageKey = `gg-cook-${recipe.id}:${plannedMealId ?? "solo"}`;
   useEffect(() => {
+    // Restore-once from storage on mount — a deliberate one-shot sync from an
+    // external system, so the set-state-in-effect rule doesn't apply here.
     try {
       const saved = sessionStorage.getItem(storageKey);
       if (saved !== null) {
         const n = Number(saved);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (Number.isInteger(n) && n > 0) setStepIndex(Math.min(n, steps.length - 1));
       }
     } catch {}

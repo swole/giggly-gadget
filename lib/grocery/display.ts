@@ -76,8 +76,8 @@ const fmt = (min: number, max: number | null) =>
 export function displayGroceryRow(row: RowInput): DisplayRow {
   let name = row.name;
   let unit = row.unit;
-  let qtyMin = row.qty_min;
-  let qtyMax = row.qty_max;
+  const qtyMin = row.qty_min;
+  const qtyMax = row.qty_max;
   let note: string | null = null;
 
   // "leek or scallion" — the shopper buys one thing; the alternative is a note.

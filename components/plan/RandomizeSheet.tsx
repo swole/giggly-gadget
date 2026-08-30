@@ -80,8 +80,11 @@ export function RandomizeSheet({
   }, [onClose]);
 
   const days = useMemo(() => weekDates(weekOf), [weekOf]);
-  const scopeDays = scope.kind === "week" ? (includeSunday ? days : days.slice(0, 6)) : [scope.day];
-  const scopeSlots = scope.kind === "slot" ? [scope.slot] : ROLL_SLOTS;
+  const scopeDays = useMemo(
+    () => (scope.kind === "week" ? (includeSunday ? days : days.slice(0, 6)) : [scope.day]),
+    [scope, includeSunday, days],
+  );
+  const scopeSlots = useMemo(() => (scope.kind === "slot" ? [scope.slot] : ROLL_SLOTS), [scope]);
 
   // What the roll can actually touch, given mode + cooked protection.
   const { fillable, cookedKept } = useMemo(() => {
@@ -102,8 +105,7 @@ export function RandomizeSheet({
       }
     }
     return { fillable: cells, cookedKept: kept };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meals, scopeDays.join(","), scopeSlots.join(","), mode]);
+  }, [meals, scopeDays, scopeSlots, mode]);
 
   const pool = useMemo(() => filterPool(recipes, filters), [recipes, filters]);
   const slotGaps = useMemo(() => {

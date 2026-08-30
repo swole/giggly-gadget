@@ -79,7 +79,9 @@ export function WeekPlanner({
   // footer caption nobody scrolled to). Gone forever after "Got it" or a first use.
   const [showGestureTip, setShowGestureTip] = useState(false);
   useEffect(() => {
+    // One-shot read of a persisted dismissal flag — external-system sync on mount.
     try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (!localStorage.getItem("gg-gesture-tip-v1")) setShowGestureTip(true);
     } catch {}
   }, []);
