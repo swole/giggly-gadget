@@ -100,7 +100,7 @@ export function RecipePreview({ recipe, onClose }: Props) {
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 pb-5 pt-4 sm:px-6 sm:pb-6">
           <div className="flex items-start justify-between gap-3">
-            <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)]">
+            <div className="text-[12px] uppercase tracking-[0.06em] text-[var(--color-muted)]">
               {[recipe.cuisine, recipe.meal_type].filter(Boolean).join(" · ") || "Recipe"}
             </div>
             {recipe.source && (
@@ -145,7 +145,7 @@ export function RecipePreview({ recipe, onClose }: Props) {
           )}
 
           <div className="mt-5 border-t border-[var(--color-line-soft)] pt-4">
-            <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--color-muted)]">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)]">
               What&rsquo;s inside
             </div>
             {ingredients === null ? (

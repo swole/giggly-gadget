@@ -11,10 +11,11 @@ import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { displayGroceryRow } from "@/lib/grocery/display";
 import { addDays, currentWeekMonday, formatWeekRange } from "@/lib/week";
-import { CATEGORY_GLYPH, CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/grocery/labels";
+import { CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/grocery/labels";
 import { SHOP_LABEL, SHOP_ORDER, type Shop } from "@/lib/grocery/shop";
 import { isPlanner, ROLE_LABEL } from "@/lib/role";
 import { useRole } from "@/components/role/RoleProvider";
+import { BasketIcon, CategoryIcon, ShopIcon, SwapIcon } from "@/components/icons";
 
 export type GroceryRow = {
   id: number;
@@ -45,7 +46,6 @@ type BuildInfo = {
   recipes_without_ingredients: string[];
 };
 
-const SHOP_GLYPH: Record<Shop, string> = { wet_market: "🐟", supermarket: "🛒", either: "🧺" };
 const DONE_LINES = ["Basket full. Nicely done.", "That's the week bought.", "All in — kitchen's stocked."];
 
 /** From Friday on, the current week's list carries a pointer to next week's shop. */
@@ -137,7 +137,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
       return CATEGORY_ORDER.filter((c) => buckets[c]?.length).map((c) => ({
         key: c,
         title: CATEGORY_LABEL[c] ?? c,
-        glyph: CATEGORY_GLYPH[c] ?? "🥄",
+        icon: <CategoryIcon category={c} size={19} />,
         sections: [{ key: c, title: null as string | null, rows: buckets[c].sort(sortRows) }],
       }));
     }
@@ -150,7 +150,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
     return SHOP_ORDER.filter((s) => byShop[s]).map((s) => ({
       key: s,
       title: SHOP_LABEL[s],
-      glyph: SHOP_GLYPH[s],
+      icon: <ShopIcon shop={s} size={19} />,
       sections: CATEGORY_ORDER.filter((c) => byShop[s][c]?.length).map((c) => ({
         key: c,
         title: CATEGORY_LABEL[c] ?? c,
@@ -280,7 +280,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
             {/* The live dot is plumbing — planners see it; the helper only needs to know when it's NOT live. */}
             Grocery <span className="ml-2 text-[var(--color-faint)]">{live === "reconnecting" ? "○ reconnecting" : live === "live" && canBuild ? "● live" : ""}</span>
           </span>
-          <nav className="flex items-center gap-1 text-[10px] uppercase tracking-[0.18em]" aria-label="Week">
+          <nav className="flex items-center gap-1 text-[12px] uppercase tracking-[0.06em]" aria-label="Week">
             <Link href={`/grocery?week=${addDays(week, -7)}`} className={navBtn} aria-label="Previous week">
               ←
             </Link>
@@ -307,13 +307,13 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
         )}
         {allBought && (
           <div className="animate-slide-up mt-3 flex items-center gap-3 rounded-2xl bg-[var(--color-sage)]/12 px-4 py-3 text-sm text-[var(--color-sage)]">
-            <span className="text-2xl" aria-hidden>🧺</span>
+            <BasketIcon size={26} className="shrink-0" />
             <span><span className="font-medium">{doneLine}</span>{!showStaples && stapleCount > 0 ? ` Staples are hidden — tap “Show pantry staples” if you need to check those too.` : ""}</span>
           </div>
         )}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <div className="flex overflow-hidden rounded-full border border-[var(--color-line)] text-[10px] uppercase tracking-[0.16em]">
+          <div className="flex overflow-hidden rounded-full border border-[var(--color-line)] text-[11px] uppercase tracking-[0.08em]">
             {(["shop", "aisle"] as const).map((v) => (
               <button
                 key={v}
@@ -329,7 +329,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
             <button
               onClick={() => setShowStaples((v) => !v)}
               aria-pressed={showStaples}
-              className="btn-quiet min-h-9 px-3 text-[10px] uppercase tracking-[0.16em]"
+              className="btn-quiet min-h-9 px-3 text-[11px] uppercase tracking-[0.08em]"
             >
               {showStaples ? "Hide" : "Show"} pantry staples ({stapleCount})
             </button>
@@ -339,7 +339,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
               onClick={build}
               disabled={building}
               title="The list follows the plan by itself; this forces a refresh."
-              className="min-h-9 rounded-full border border-[var(--color-line)] px-3 text-[10px] uppercase tracking-[0.16em] text-[var(--color-muted)] hover:text-[var(--color-terra)] disabled:opacity-60"
+              className="min-h-9 rounded-full border border-[var(--color-line)] px-3 text-[11px] uppercase tracking-[0.08em] text-[var(--color-muted)] hover:text-[var(--color-terra)] disabled:opacity-60"
             >
               {building ? "Rebuilding…" : "Rebuild from plan"}
             </button>
@@ -381,7 +381,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
               ? `The list is ready — ${nextShop.items} item${nextShop.items === 1 ? "" : "s"} for ${nextShop.meals} meal${nextShop.meals === 1 ? "" : "s"}.`
               : `${nextShop.meals} meal${nextShop.meals === 1 ? "" : "s"} planned — the list builds on the next plan change.`}
           </span>
-          <span className="btn-quiet shrink-0 px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] text-[var(--color-terra-dark)]">Next week&rsquo;s list →</span>
+          <span className="btn-quiet shrink-0 px-3 py-1.5 text-[12px] uppercase tracking-[0.06em] text-[var(--color-terra-dark)]">Next week&rsquo;s list →</span>
         </Link>
       )}
       {nextShop && nextShop.meals === 0 && (
@@ -391,7 +391,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
             {canBuild ? "Plan it and the shopping list writes itself." : "Johnny or Lydia will plan it — the list follows."}
           </span>
           {canBuild && (
-            <Link href={`/plan?week=${nextShop.week}`} className="btn-quiet shrink-0 px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] text-[var(--color-terra-dark)]">
+            <Link href={`/plan?week=${nextShop.week}`} className="btn-quiet shrink-0 px-3 py-1.5 text-[12px] uppercase tracking-[0.06em] text-[var(--color-terra-dark)]">
               Plan it →
             </Link>
           )}
@@ -403,7 +403,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
             <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-terra-dark)]">Shopping ahead</span>
             Buying for the week of {formatWeekRange(week)}.
           </span>
-          <Link href="/grocery" className="btn-quiet shrink-0 px-3 py-1 text-[10px] uppercase tracking-[0.16em]">
+          <Link href="/grocery" className="btn-quiet shrink-0 px-3 py-1 text-[11px] uppercase tracking-[0.08em]">
             This week ←
           </Link>
         </div>
@@ -421,7 +421,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
           <button
             type="submit"
             disabled={!adding.trim()}
-            className="min-h-11 rounded-xl border border-[var(--color-line)] px-4 text-[10px] uppercase tracking-[0.18em] text-[var(--color-ink)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)] disabled:opacity-50"
+            className="min-h-11 rounded-xl border border-[var(--color-line)] px-4 text-[12px] uppercase tracking-[0.06em] text-[var(--color-ink)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)] disabled:opacity-50"
           >
             Add
           </button>
@@ -431,13 +431,13 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
 
       {groups.length === 0 ? (
         <div className="mt-20 text-center text-[var(--color-muted)]">
-          <div className="text-3xl">🧺</div>
+          <BasketIcon size={34} className="mx-auto text-[var(--color-faint)]" />
           <p className="font-display-italic mt-2 text-2xl text-[var(--color-body)]">Nothing on the list yet.</p>
           <p className="mt-2 text-xs text-[var(--color-faint)]">
             {canBuild ? "Plan the week and the list writes itself. Or add items by hand above." : "The list fills in once Johnny or Lydia plan the week. You can add items by hand above."}
           </p>
           {canBuild && (
-            <Link href={`/plan?week=${week}`} className="btn-ink mt-4 px-5 text-[10px] uppercase tracking-[0.18em]">
+            <Link href={`/plan?week=${week}`} className="btn-ink mt-4 px-5 text-[12px] uppercase tracking-[0.06em]">
               Open the plan →
             </Link>
           )}
@@ -450,17 +450,17 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
             return (
               <section key={g.key}>
                 <h2 className="flex items-center gap-2 border-b border-[var(--color-line)] pb-2 font-display text-2xl text-[var(--color-ink)]">
-                  <span className="text-xl">{g.glyph}</span>
+                  <span className="text-[var(--color-muted)]" aria-hidden>{g.icon}</span>
                   {g.title}
-                  <span className={`ml-auto text-[10px] uppercase tracking-[0.18em] ${gDone === gTotal ? "text-[var(--color-sage)]" : "text-[var(--color-faint)]"}`}>
+                  <span className={`ml-auto text-[12px] uppercase tracking-[0.06em] ${gDone === gTotal ? "text-[var(--color-sage)]" : "text-[var(--color-faint)]"}`}>
                     {gDone === gTotal ? "✓ done" : `${gDone}/${gTotal}`}
                   </span>
                 </h2>
                 {g.sections.map((s) => (
                   <div key={s.key} className="mt-3">
                     {s.title && view === "shop" && (
-                      <h3 className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.22em] text-[var(--color-muted)]">
-                        <span>{CATEGORY_GLYPH[s.key] ?? "🥄"}</span>
+                      <h3 className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-[var(--color-muted)]">
+                        <CategoryIcon category={s.key} size={13} />
                         {s.title}
                       </h3>
                     )}
@@ -571,7 +571,7 @@ function SubstituteSheet({ row, onClose, onApplied }: { row: GroceryRow; onClose
               Swap {row.substituted_for ?? row.name}
             </h2>
           </div>
-          <button onClick={onClose} className="btn-quiet px-3 py-1 text-[10px] uppercase tracking-[0.18em]">
+          <button onClick={onClose} className="btn-quiet px-3 py-1 text-[12px] uppercase tracking-[0.06em]">
             Close
           </button>
         </div>
@@ -600,7 +600,7 @@ function SubstituteSheet({ row, onClose, onApplied }: { row: GroceryRow; onClose
                       {o.qty_note ? ` · ${o.qty_note}` : ""}
                     </span>
                   </span>
-                  <span className="shrink-0 text-[10px] uppercase tracking-[0.16em] text-[var(--color-terra)]">
+                  <span className="shrink-0 text-[11px] uppercase tracking-[0.08em] text-[var(--color-terra)]">
                     {busy === o.name ? "…" : "Use this"}
                   </span>
                 </button>
@@ -708,8 +708,8 @@ function GroceryRowItem({
           onClick={(e) => e.stopPropagation()}
           role="menu"
         >
-          <button role="menuitem" onClick={onSubstitute} className="block min-h-11 w-full px-4 text-left hover:bg-[var(--color-paper)]/60">
-            <span className="mr-1.5" aria-hidden>🔄</span>No stock? Get a swap
+          <button role="menuitem" onClick={onSubstitute} className="flex min-h-11 w-full items-center gap-2 px-4 text-left hover:bg-[var(--color-paper)]/60">
+            <SwapIcon size={14} className="shrink-0 text-[var(--color-terra)]" />No stock? Get a swap
           </button>
           {canConfigure && (
             <button role="menuitem" onClick={() => onStaple(!row.staple)} className="block min-h-11 w-full px-4 text-left hover:bg-[var(--color-paper)]/60">

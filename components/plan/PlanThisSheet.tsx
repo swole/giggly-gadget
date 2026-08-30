@@ -138,13 +138,13 @@ export function PlanThisSheet({
         className="animate-slide-up w-full max-w-lg rounded-t-3xl bg-[var(--color-card)] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl"
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--color-line-soft)] sm:hidden" />
-        <div className="text-[10px] uppercase tracking-[0.2em] text-[var(--color-muted)]">{nudge ? "Added to your recipes" : "Plan this"}</div>
+        <div className="text-[11px] uppercase tracking-[0.12em] text-[var(--color-muted)]">{nudge ? "Added to your recipes" : "Plan this"}</div>
         <h2 id="plan-this-title" className="font-display mt-1 text-2xl leading-tight text-[var(--color-ink)]">
           {nudge ? `Put “${title}” on the plan?` : title}
         </h2>
 
         <div className="mt-4 flex items-center justify-between">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)]">Week</div>
+          <div className="text-[12px] uppercase tracking-[0.06em] text-[var(--color-muted)]">Week</div>
           <div className="flex gap-1">
             {([0, 1] as const).map((w) => (
               <button
@@ -184,7 +184,7 @@ export function PlanThisSheet({
           })}
         </div>
 
-        <div className="mt-4 text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)]">Meal</div>
+        <div className="mt-4 text-[12px] uppercase tracking-[0.06em] text-[var(--color-muted)]">Meal</div>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {SLOTS.map((s) => (
             <button key={s} type="button" onClick={() => setSlot(s)} className={chip(slot === s)}>
@@ -193,7 +193,7 @@ export function PlanThisSheet({
           ))}
         </div>
 
-        <div className="mt-4 text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)]">Who eats</div>
+        <div className="mt-4 text-[12px] uppercase tracking-[0.06em] text-[var(--color-muted)]">Who eats</div>
         <div className="mt-2 flex gap-1.5">
           {EATERS.map((e) => (
             <button key={e} type="button" onClick={() => setEaters(e)} className={chip(eaters === e)}>

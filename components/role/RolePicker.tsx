@@ -104,7 +104,7 @@ export function RoleSheet({
         className="w-full max-w-md rounded-t-3xl bg-[var(--color-card)] px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-6 shadow-2xl sm:rounded-3xl sm:pb-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-[10px] uppercase tracking-[0.28em] text-[var(--color-muted)]">Giggly Gadget</div>
+        <div className="text-[11px] uppercase tracking-[0.22em] text-[var(--color-muted)]">Giggly Gadget</div>
         <h2 className="font-display-italic mt-2 text-3xl leading-tight text-[var(--color-ink)]">{title}</h2>
         {subtitle && <p className="mt-1 text-sm text-[var(--color-muted)]">{subtitle}</p>}
 

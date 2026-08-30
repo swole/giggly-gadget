@@ -31,11 +31,11 @@ export type ExtractMedia = {
 
 const input =
   "w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] px-4 py-3 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-faint)] focus:border-[var(--color-terra)] focus:outline-none";
-const label = "text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)]";
+const label = "text-[12px] uppercase tracking-[0.06em] text-[var(--color-muted)]";
 const primary =
   "rounded-full bg-[var(--color-ink)] px-5 py-3 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--color-cream)] shadow-sm transition-all hover:bg-[var(--color-terra)] active:scale-[0.98] disabled:opacity-50";
 const ghost =
-  "rounded-full border border-[var(--color-line)] px-4 py-2 text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)] active:scale-[0.98]";
+  "rounded-full border border-[var(--color-line)] px-4 py-2 text-[12px] uppercase tracking-[0.06em] text-[var(--color-muted)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)] active:scale-[0.98]";
 
 export function AddMealFlow({ initialUrl = null, initialText = null }: { initialUrl?: string | null; initialText?: string | null }) {
   const role = useRole();
@@ -241,7 +241,7 @@ export function AddMealFlow({ initialUrl = null, initialText = null }: { initial
 
       {(stage === "input" || stage === "extracting") && (
         <section aria-busy={extracting}>
-          <div role="tablist" className="flex overflow-hidden rounded-full border border-[var(--color-line)] text-[10px] uppercase tracking-[0.16em]">
+          <div role="tablist" className="flex overflow-hidden rounded-full border border-[var(--color-line)] text-[11px] uppercase tracking-[0.08em]">
             {(["url", "text", "photo"] as Tab[]).map((t) => (
               <button
                 key={t}
@@ -454,7 +454,7 @@ function DraftForm({
                 type="button"
                 aria-pressed={on}
                 onClick={() => set("tags", on ? draft.tags.filter((x) => x !== t) : [...draft.tags, t].slice(0, 4))}
-                className={`rounded-full border px-3 py-1.5 text-[10px] uppercase tracking-[0.14em] transition-colors ${
+                className={`rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.08em] transition-colors ${
                   on ? "border-[var(--color-terra)] bg-[var(--color-terra)] text-[var(--color-cream)]" : "border-[var(--color-line)] text-[var(--color-muted)]"
                 }`}
               >
@@ -559,7 +559,7 @@ function DraftForm({
               type="button"
               aria-pressed={source === s}
               onClick={() => onSource(s)}
-              className={`rounded-full px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] ${
+              className={`rounded-full px-2.5 py-1 text-[11px] uppercase tracking-[0.08em] ${
                 source === s ? "bg-[var(--color-ink)] text-[var(--color-cream)]" : "border border-[var(--color-line)]"
               }`}
             >

@@ -168,7 +168,7 @@ export function RandomizeSheet({
         ? formatDayLong(scope.day)
         : "this week";
   const chip = (on: boolean, label: string, onClick: () => void) => (
-    <button key={label} onClick={onClick} data-on={on} className="chip-toggle shrink-0 px-3 py-1.5 text-[10px] uppercase tracking-[0.14em]">
+    <button key={label} onClick={onClick} data-on={on} className="chip-toggle shrink-0 px-3 py-1.5 text-[11px] uppercase tracking-[0.08em]">
       {label}
     </button>
   );
@@ -196,26 +196,26 @@ export function RandomizeSheet({
                 Roll {scope.kind === "week" ? "the week" : scope.kind === "day" ? "the day" : SLOT_LABEL[scope.slot].toLowerCase()}
               </h2>
             </div>
-            <button onClick={onClose} className="btn-quiet px-3 py-1 text-[10px] uppercase tracking-[0.18em]">
+            <button onClick={onClose} className="btn-quiet px-3 py-1 text-[12px] uppercase tracking-[0.06em]">
               Close
             </button>
           </div>
 
           {/* Theme */}
-          <div className="mt-4 text-[10px] uppercase tracking-[0.2em] text-[var(--color-muted)]">Added by</div>
+          <div className="mt-4 text-[11px] uppercase tracking-[0.12em] text-[var(--color-muted)]">Added by</div>
           <div className="mt-2 flex flex-wrap gap-2">
             {["Lydia", "Johnny", "Claude"].map((s) =>
               chip(filters.source === s, s, () => upd({ source: filters.source === s ? null : s })),
             )}
           </div>
-          <div className="mt-3 text-[10px] uppercase tracking-[0.2em] text-[var(--color-muted)]">Style</div>
+          <div className="mt-3 text-[11px] uppercase tracking-[0.12em] text-[var(--color-muted)]">Style</div>
           <div className="mt-2 flex flex-wrap gap-2">
             {chip(!!filters.healthy, "♥ Heart healthy", () => upd({ healthy: !filters.healthy }))}
             {chip(!!filters.quick, "≤ 30 min", () => upd({ quick: !filters.quick }))}
             {chip(!!filters.wantToTry, "Want to try", () => upd({ wantToTry: !filters.wantToTry }))}
             {chip(!!filters.favourites, "★ Favourites", () => upd({ favourites: !filters.favourites }))}
           </div>
-          <div className="mt-3 text-[10px] uppercase tracking-[0.2em] text-[var(--color-muted)]">Cuisine</div>
+          <div className="mt-3 text-[11px] uppercase tracking-[0.12em] text-[var(--color-muted)]">Cuisine</div>
           {/* Edge fade tells the thumb there are more chips off-screen. */}
           <div
             className="scrollbar-none -mx-5 mt-2 flex gap-2 overflow-x-auto px-5 pb-1"

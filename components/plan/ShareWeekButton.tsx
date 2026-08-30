@@ -58,7 +58,7 @@ export function ShareWeekButton({
   }
 
   return (
-    <button onClick={() => void share()} className="btn-quiet px-3 py-1.5 text-[10px] uppercase tracking-[0.18em]" title="Send the week to Shallaine">
+    <button onClick={() => void share()} className="btn-quiet px-3 py-1.5 text-[12px] uppercase tracking-[0.06em]" title="Send the week to Shallaine">
       {state === "copied" ? "Copied ✓" : state === "failed" ? "Copy failed" : "Share"}
     </button>
   );

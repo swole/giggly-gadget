@@ -145,7 +145,9 @@ body::before {
 .btn-quiet:active { transform: translateY(1px); }
 .btn-quiet:disabled { opacity: 0.55; transform: none; }
 
-/* Every interactive control gets a visible keyboard focus. */
+/* Every interactive control gets a visible keyboard focus — buttons, links,
+   checkboxes and star controls included, not just the pill classes. */
+button:focus-visible, a:focus-visible, input:focus-visible,
 .btn-primary:focus-visible, .btn-ink:focus-visible, .btn-quiet:focus-visible,
 .chip-toggle:focus-visible {
   outline: 2px solid var(--color-terra);
@@ -246,4 +248,11 @@ body::before {
 /* Inputs: 16px on touch screens stops iOS zooming the page when a field is focused. */
 @media (pointer: coarse) {
   input, select, textarea { font-size: 16px; }
+}
+
+/* Paper stays on screen; ink goes on paper. */
+@media print {
+  nav { display: none !important; }
+  body { background: #fff !important; }
+  body::before { display: none !important; }
 }

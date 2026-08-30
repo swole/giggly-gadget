@@ -54,7 +54,7 @@ export function TimerTray({ timers, onDismiss, onElapsed }: Props) {
                   : "border-[var(--color-line)] bg-[var(--color-paper-2)]/50"
               }`}
             >
-              <span className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)]">
+              <span className="text-[12px] uppercase tracking-[0.06em] text-[var(--color-muted)]">
                 {t.label}
               </span>
               <span className="font-display text-2xl tabular-nums text-[var(--color-terra)]">

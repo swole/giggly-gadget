@@ -51,7 +51,7 @@ export function RecipeCard({
 
       <div className="px-5 pb-5 pt-4">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)]">
+          <div className="text-[12px] uppercase tracking-[0.06em] text-[var(--color-muted)]">
             {cuisineMeal || "Uncategorized"}
           </div>
           {recipe.source && <SourceBadge source={recipe.source} />}
@@ -107,14 +107,15 @@ function SourceBadge({ source }: { source: string }) {
     : "bg-[var(--color-clay)] text-[var(--color-cream)]";
   return (
     <span
-      className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.18em] ${cls}`}
+      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] ${cls}`}
     >
       {source}
     </span>
   );
 }
 
-// Charming placeholder when no image_url — soft warm gradient with a cuisine glyph
+// Charming placeholder when no image_url — soft warm gradient with a Fraunces
+// monogram (platform emoji rendered in someone else's palette; the initial is ours).
 function PlaceholderArt({
   cuisine,
   mealType,
@@ -122,17 +123,18 @@ function PlaceholderArt({
   cuisine: string | null;
   mealType: string | null;
 }) {
-  const { from, to, glyph } = cuisineStyle(cuisine, mealType);
+  const { from, to } = cuisineStyle(cuisine, mealType);
+  const initial = (cuisine ?? mealType ?? "·").slice(0, 1).toUpperCase();
   return (
     <div
       className="relative flex h-full w-full items-center justify-center"
       style={{ background: `linear-gradient(135deg, ${from} 0%, ${to} 100%)` }}
     >
       <span
-        className="font-display select-none text-6xl opacity-50"
+        className="font-display-italic select-none text-7xl opacity-60"
         style={{ color: "#fff", filter: "drop-shadow(0 1px 2px rgba(43,24,16,0.18))" }}
       >
-        {glyph}
+        {initial}
       </span>
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.25),transparent_60%)]" />
     </div>
@@ -142,18 +144,18 @@ function PlaceholderArt({
 function cuisineStyle(cuisine: string | null, mealType: string | null) {
   const c = (cuisine ?? "").toLowerCase();
   const m = (mealType ?? "").toLowerCase();
-  if (m === "dessert") return { from: "#e8b86e", to: "#c8553d", glyph: "🍰" };
-  if (m === "breakfast") return { from: "#f4cb6a", to: "#e08560", glyph: "🥣" };
-  if (m === "snack") return { from: "#d4a24a", to: "#7c4f4f", glyph: "🥨" };
-  if (c === "italian") return { from: "#c8553d", to: "#7c4f4f", glyph: "🍝" };
-  if (c === "japanese") return { from: "#e08560", to: "#7c4f4f", glyph: "🍜" };
-  if (c === "korean") return { from: "#c8553d", to: "#4a2e2e", glyph: "🌶️" };
-  if (c === "chinese") return { from: "#d4a24a", to: "#c8553d", glyph: "🥢" };
-  if (c === "thai") return { from: "#e8b86e", to: "#7b8b5e", glyph: "🌿" };
-  if (c === "mexican") return { from: "#e08560", to: "#7c4f4f", glyph: "🌮" };
-  if (c === "indian") return { from: "#d4a24a", to: "#7c4f4f", glyph: "🍛" };
-  if (c === "french") return { from: "#b8a48a", to: "#7c4f4f", glyph: "🥐" };
-  if (c === "american") return { from: "#e8b86e", to: "#c8553d", glyph: "🍳" };
-  if (c === "mediterranean") return { from: "#7b8b5e", to: "#c8553d", glyph: "🫒" };
-  return { from: "#d4a24a", to: "#c8553d", glyph: "🥄" };
+  if (m === "dessert") return { from: "#e8b86e", to: "#c8553d" };
+  if (m === "breakfast") return { from: "#f4cb6a", to: "#e08560" };
+  if (m === "snack") return { from: "#d4a24a", to: "#7c4f4f" };
+  if (c === "italian") return { from: "#c8553d", to: "#7c4f4f" };
+  if (c === "japanese") return { from: "#e08560", to: "#7c4f4f" };
+  if (c === "korean") return { from: "#c8553d", to: "#4a2e2e" };
+  if (c === "chinese") return { from: "#d4a24a", to: "#c8553d" };
+  if (c === "thai") return { from: "#e8b86e", to: "#7b8b5e" };
+  if (c === "mexican") return { from: "#e08560", to: "#7c4f4f" };
+  if (c === "indian") return { from: "#d4a24a", to: "#7c4f4f" };
+  if (c === "french") return { from: "#b8a48a", to: "#7c4f4f" };
+  if (c === "american") return { from: "#e8b86e", to: "#c8553d" };
+  if (c === "mediterranean") return { from: "#7b8b5e", to: "#c8553d" };
+  return { from: "#d4a24a", to: "#c8553d" };
 }

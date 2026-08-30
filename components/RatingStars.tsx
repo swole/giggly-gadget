@@ -114,7 +114,7 @@ export function RatingStars({ recipeId, initial, compact = false }: Props) {
           disabled={pending}
           onClick={() => void save(0)}
           title="Clear rating"
-          className="ml-2 rounded-full border border-[var(--color-line)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[var(--color-muted)] transition-colors hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]"
+          className="ml-2 rounded-full border border-[var(--color-line)] px-2 py-0.5 text-[11px] uppercase tracking-[0.08em] text-[var(--color-muted)] transition-colors hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]"
         >
           clear
         </button>

@@ -64,7 +64,7 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
       )}
       <Link
         href={plannedMealId ? "/" : "/recipes"}
-        className="btn-quiet inline-flex px-3 py-1.5 text-[10px] uppercase tracking-[0.18em]"
+        className="btn-quiet inline-flex px-3 py-1.5 text-[12px] uppercase tracking-[0.06em]"
       >
         {plannedMealId ? "← Kitchen" : "← Recipes"}
       </Link>
@@ -108,7 +108,7 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
 
       <header className="mt-8 border-b border-[var(--color-line)] pb-8">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)]">
+          <div className="text-[12px] uppercase tracking-[0.06em] text-[var(--color-muted)]">
             {[recipe.cuisine, recipe.meal_type].filter(Boolean).join(" · ") || "Recipe"}
           </div>
           {recipe.source && (
@@ -150,7 +150,7 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
 
       <section className="mt-10">
         <div className="flex items-baseline justify-between gap-4">
-          <h2 className="font-display-italic text-2xl text-[var(--color-ink)]">
+          <h2 className="font-display text-2xl text-[var(--color-ink)]">
             Ingredients
           </h2>
           <ScaleSummary mode={mode} factor={factor} />
@@ -195,7 +195,7 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
 
       {steps.length > 0 && (
         <section className="mt-12">
-          <h2 className="font-display-italic text-2xl text-[var(--color-ink)]">Method</h2>
+          <h2 className="font-display text-2xl text-[var(--color-ink)]">Method</h2>
           <ol className="mt-5 space-y-5">
             {steps.map((step, i) => (
               <li
@@ -228,7 +228,7 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
 function ScaleSummary({ mode, factor }: { mode: ScaleMode; factor: number }) {
   if (mode.kind === "eaters") {
     return (
-      <span className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-faint)]">
+      <span className="text-[12px] uppercase tracking-[0.06em] text-[var(--color-faint)]">
         {EATERS_LABEL[mode.eaters]}
       </span>
     );
@@ -238,7 +238,7 @@ function ScaleSummary({ mode, factor }: { mode: ScaleMode; factor: number }) {
       ? `${mode.target} ${mode.target === 1 ? "serving" : "servings"}`
       : `${mode.days}d × ${mode.servingsPerDay} = ${mode.days * mode.servingsPerDay}`;
   return (
-    <span className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-faint)]">
+    <span className="text-[12px] uppercase tracking-[0.06em] text-[var(--color-faint)]">
       {label} · ×{factor.toFixed(2).replace(/\.00$/, "")}
     </span>
   );

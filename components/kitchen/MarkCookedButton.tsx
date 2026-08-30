@@ -71,7 +71,7 @@ export function MarkCookedButton({
 
   const base =
     size === "sm"
-      ? "min-h-9 rounded-full px-3 text-[10px] uppercase tracking-[0.16em]"
+      ? "min-h-9 rounded-full px-3 text-[11px] uppercase tracking-[0.08em]"
       : "min-h-11 rounded-full px-4 text-[11px] uppercase tracking-[0.18em]";
 
   if (state === "undo-offer") {

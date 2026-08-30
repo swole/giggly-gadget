@@ -231,7 +231,7 @@ export function WeekPlanner({
               )}
             </p>
           </div>
-          <nav className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em]">
+          <nav className="flex items-center gap-1.5 text-[12px] uppercase tracking-[0.06em]">
             <Link href={`/plan?week=${prev}`} className="btn-quiet px-3 py-1.5">
               ← Prev
             </Link>
@@ -340,7 +340,7 @@ export function WeekPlanner({
             <span className="font-display text-lg text-[var(--color-muted)]">
               {formatDayLabel(days[6])} <span className="text-sm italic">· rest day</span>
             </span>
-            <span className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-faint)]">
+            <span className="text-[12px] uppercase tracking-[0.06em] text-[var(--color-faint)]">
               {sundayMeals.length > 0 ? `${sundayMeals.length} planned` : showSunday ? "Hide" : "Plan anyway"}
             </span>
           </button>
@@ -386,14 +386,14 @@ export function WeekPlanner({
                 <Die size={12} className="mr-1.5 inline-block align-[-1px] text-[var(--color-mustard)]" />
                 {rollToast.text}
               </span>
-              {rollToast.theme && <span className="block truncate text-[10px] uppercase tracking-[0.14em] text-[var(--color-cream)]/60">theme: {rollToast.theme}</span>}
+              {rollToast.theme && <span className="block truncate text-[11px] uppercase tracking-[0.08em] text-[var(--color-cream)]/60">theme: {rollToast.theme}</span>}
             </span>
             <span className="flex shrink-0 items-center gap-1.5">
               {rollToast.again && (
                 <button
                   onClick={rollToast.again}
                   disabled={rollBusy}
-                  className="rounded-full border border-[var(--color-cream)]/40 px-3 py-1 text-[10px] uppercase tracking-[0.18em] hover:bg-[var(--color-cream)]/10 disabled:opacity-50"
+                  className="rounded-full border border-[var(--color-cream)]/40 px-3 py-1 text-[12px] uppercase tracking-[0.06em] hover:bg-[var(--color-cream)]/10 disabled:opacity-50"
                 >
                   {rollBusy ? "…" : "Again"}
                 </button>
@@ -404,7 +404,7 @@ export function WeekPlanner({
                     rollToast.undo?.();
                     setRollToast(null);
                   }}
-                  className="rounded-full border border-[var(--color-cream)]/40 px-3 py-1 text-[10px] uppercase tracking-[0.18em] hover:bg-[var(--color-cream)]/10"
+                  className="rounded-full border border-[var(--color-cream)]/40 px-3 py-1 text-[12px] uppercase tracking-[0.06em] hover:bg-[var(--color-cream)]/10"
                 >
                   {rollToast.undoLabel ?? "Undo"}
                 </button>
@@ -417,7 +417,7 @@ export function WeekPlanner({
       {undo && (
         <div className="fixed inset-x-4 bottom-24 z-40 mx-auto flex max-w-md items-center justify-between gap-3 rounded-2xl bg-[var(--color-ink)] px-4 py-3 text-sm text-[var(--color-cream)] shadow-xl" role="status">
           <span className="truncate">Removed {undo.title}</span>
-          <button onClick={undoRemove} className="shrink-0 rounded-full border border-[var(--color-cream)]/40 px-3 py-1 text-[10px] uppercase tracking-[0.18em] hover:bg-[var(--color-cream)]/10">
+          <button onClick={undoRemove} className="shrink-0 rounded-full border border-[var(--color-cream)]/40 px-3 py-1 text-[12px] uppercase tracking-[0.06em] hover:bg-[var(--color-cream)]/10">
             Undo
           </button>
         </div>
@@ -541,14 +541,14 @@ function DayCard({
           <span className="ml-3 flex items-center gap-2">
             {showProtein && (
               <span
-                className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-muted)]"
+                className="text-[11px] uppercase tracking-[0.08em] tabular-nums text-[var(--color-muted)]"
                 title={`Protein from the recipes' notes${protein.missing ? ` (${protein.missing} meal${protein.missing > 1 ? "s" : ""} without a figure)` : ""}. Targets J 110-150 g, L 70-80 g.`}
               >
-                J {protein.j} g · L {protein.l} g{protein.missing ? " +" : ""}
+                protein J {protein.j} · L {protein.l}{protein.missing ? " +" : ""}
               </span>
             )}
             {isToday && (
-              <span className="rounded-full bg-[var(--color-terra)] px-2 py-0.5 text-[9px] uppercase tracking-[0.18em] text-[var(--color-cream)]">
+              <span className="rounded-full bg-[var(--color-terra)] px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-[var(--color-cream)]">
                 Today
               </span>
             )}
@@ -745,7 +745,7 @@ function NoteSheet({ meal, title, onClose, onSave }: { meal: PlannedMeal; title:
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-[var(--color-ink)]/40 sm:items-center" onClick={onClose} role="presentation">
       <div role="dialog" aria-modal="true" aria-labelledby="note-title" onClick={(e) => e.stopPropagation()} className="animate-slide-up w-full max-w-lg rounded-t-3xl bg-[var(--color-card)] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl">
-        <div className="text-[10px] uppercase tracking-[0.2em] text-[var(--color-muted)]">Note for the cook</div>
+        <div className="text-[11px] uppercase tracking-[0.12em] text-[var(--color-muted)]">Note for the cook</div>
         <h2 id="note-title" className="font-display mt-1 text-xl text-[var(--color-ink)]">{title}</h2>
         <textarea
           value={text}

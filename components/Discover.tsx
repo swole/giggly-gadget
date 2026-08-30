@@ -82,7 +82,7 @@ export function Discover({ recipes }: { recipes: Recipe[] }) {
     <main className="relative z-10 mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 sm:pt-10">
       <header className="mb-10 sm:mb-14">
         <div className="flex items-baseline justify-between">
-          <span className="text-[10px] uppercase tracking-[0.32em] text-[var(--color-muted)]">
+          <span className="text-[11px] uppercase tracking-[0.24em] text-[var(--color-muted)]">
             Recipes
           </span>
         </div>

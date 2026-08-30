@@ -53,7 +53,7 @@ export function ScaleControl({ baseServings, mode, onChange }: Props) {
 
       {showServings && (
         <>
-          <div className="mt-3 flex items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-[var(--color-faint)]">
+          <div className="mt-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.08em] text-[var(--color-faint)]">
             <span className="h-px flex-1 bg-[var(--color-line)]/60" />
             or scale by servings
             <span className="h-px flex-1 bg-[var(--color-line)]/60" />
@@ -135,7 +135,7 @@ function Stepper({
 }) {
   return (
     <div className="flex items-center justify-between rounded-lg border border-[var(--color-line)] bg-[var(--color-card)] px-3 py-2">
-      <span className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)]">
+      <span className="text-[12px] uppercase tracking-[0.06em] text-[var(--color-muted)]">
         {label}
       </span>
       <div className="flex items-center gap-3">

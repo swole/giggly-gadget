@@ -136,7 +136,7 @@ export function RecipePickerSheet({
     <button
       key={f}
       onClick={() => toggle(f)}
-      className={`shrink-0 rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.16em] transition-colors ${
+      className={`shrink-0 rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.08em] transition-colors ${
         filters.has(f)
           ? "border-[var(--color-terra)] bg-[var(--color-terra)] text-[var(--color-cream)]"
           : "border-[var(--color-line)] text-[var(--color-muted)] hover:border-[var(--color-terra)]"
@@ -160,20 +160,20 @@ export function RecipePickerSheet({
         <div className="px-5 pt-5">
           <div className="flex items-baseline justify-between">
             <div>
-              <div className="text-[10px] uppercase tracking-[0.24em] text-[var(--color-muted)]">
+              <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)]">
                 {SLOT_LABEL[slot]} · {formatDayLong(day)}
               </div>
               <h2 className="font-display-italic mt-1 text-2xl text-[var(--color-ink)]">Add a dish</h2>
             </div>
             <button
               onClick={onClose}
-              className="btn-quiet px-3 py-1 text-[10px] uppercase tracking-[0.18em]"
+              className="btn-quiet px-3 py-1 text-[12px] uppercase tracking-[0.06em]"
             >
               Close
             </button>
           </div>
           {leftoverCandidates.length > 0 && (
-            <div className="mt-3 flex overflow-hidden rounded-full border border-[var(--color-line)] text-[10px] uppercase tracking-[0.16em]">
+            <div className="mt-3 flex overflow-hidden rounded-full border border-[var(--color-line)] text-[11px] uppercase tracking-[0.08em]">
               {(["recipes", "leftovers"] as const).map((m) => (
                 <button
                   key={m}
@@ -204,7 +204,7 @@ export function RecipePickerSheet({
           </div>
           {onPickCustom && !q.trim() && recentCustoms.length > 0 && (
             <div className="scrollbar-none -mx-5 flex items-center gap-2 overflow-x-auto px-5 pb-3">
-              <span className="shrink-0 text-[9px] uppercase tracking-[0.16em] text-[var(--color-faint)]">One-offs</span>
+              <span className="shrink-0 text-[10px] uppercase tracking-[0.16em] text-[var(--color-faint)]">One-offs</span>
               {recentCustoms.map((t) => (
                 <button
                   key={t}
@@ -236,7 +236,7 @@ export function RecipePickerSheet({
                       cooked {formatDayLong(c.planned_for)} {SLOT_LABEL[c.slot].toLowerCase()} · no shopping needed
                     </span>
                   </span>
-                  <span className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-terra)]">{busy === String(c.id) ? "…" : "Add"}</span>
+                  <span className="text-[11px] uppercase tracking-[0.08em] text-[var(--color-terra)]">{busy === String(c.id) ? "…" : "Add"}</span>
                 </button>
               </li>
             ))}
@@ -270,7 +270,7 @@ export function RecipePickerSheet({
                       )}
                     </span>
                   </span>
-                  <span className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-terra)]">
+                  <span className="text-[11px] uppercase tracking-[0.08em] text-[var(--color-terra)]">
                     {busy === r.id ? "…" : "Add"}
                   </span>
                 </button>
@@ -293,7 +293,7 @@ export function RecipePickerSheet({
                   </span>
                   <span className="block text-[11px] text-[var(--color-muted)]">no recipe — just a line for the cook, no shopping</span>
                 </span>
-                <span className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-terra)]">
+                <span className="text-[11px] uppercase tracking-[0.08em] text-[var(--color-terra)]">
                   {busy === `custom:${q.trim().slice(0, 80)}` ? "…" : "Add"}
                 </span>
               </button>

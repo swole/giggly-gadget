@@ -16,6 +16,7 @@ import { isPlanner, labelFor } from "@/lib/role";
 import { useRole } from "@/components/role/RoleProvider";
 import { MarkCookedButton } from "./MarkCookedButton";
 import { RatingStars } from "@/components/RatingStars";
+import { BasketIcon, BowlIcon, PlateIcon, SunIcon } from "@/components/icons";
 
 /** From Friday: next week's shop, so an empty today can say something useful. */
 export type ShopAhead = { week: string; meals: number; items: number } | null;
@@ -138,7 +139,7 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {}, 
           <span>
             <span className="font-medium">Next week is empty.</span> Fill it from the rotation or copy this week.
           </span>
-          <span className="btn-quiet shrink-0 px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] text-[var(--color-terra-dark)]">Plan it →</span>
+          <span className="btn-quiet shrink-0 px-3 py-1.5 text-[12px] uppercase tracking-[0.06em] text-[var(--color-terra-dark)]">Plan it →</span>
         </Link>
       )}
 
@@ -146,7 +147,7 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {}, 
       <section className="mt-12">
         <div className="flex items-baseline justify-between border-b border-[var(--color-line)] pb-2">
           <h2 className="font-display text-2xl text-[var(--color-ink)]">Tomorrow</h2>
-          <span className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)]">{formatDayLong(tomorrow)}</span>
+          <span className="text-[12px] uppercase tracking-[0.06em] text-[var(--color-muted)]">{formatDayLong(tomorrow)}</span>
         </div>
         {isoDow(tomorrow) === 6 && tomorrowMeals.length === 0 ? (
           <p className="mt-3 text-sm text-[var(--color-faint)]">Sunday — rest day.</p>
@@ -192,7 +193,7 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {}, 
                     <ul className="space-y-1.5">
                       {ms.map((m) => (
                         <li key={m.id} className="flex items-baseline gap-2">
-                          <span className="w-14 shrink-0 text-[10px] uppercase tracking-[0.14em] text-[var(--color-faint)]">
+                          <span className="w-14 shrink-0 text-[11px] uppercase tracking-[0.08em] text-[var(--color-faint)]">
                             {SLOT_ABBR[m.slot]}
                           </span>
                           <MaybeLink
@@ -215,7 +216,7 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {}, 
         {planner && (
           <Link
             href="/plan"
-            className="btn-quiet mt-6 px-4 text-[10px] uppercase tracking-[0.18em]"
+            className="btn-quiet mt-6 px-4 text-[12px] uppercase tracking-[0.06em]"
           >
             Open the week planner →
           </Link>
@@ -251,7 +252,7 @@ function ProgressRing({ done, total }: { done: number; total: number }) {
           {done}
           <span className="text-[var(--color-faint)]">/{total}</span>
         </div>
-        <div className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-faint)]">cooked</div>
+        <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--color-faint)]">cooked</div>
       </div>
     </div>
   );
@@ -259,7 +260,7 @@ function ProgressRing({ done, total }: { done: number; total: number }) {
 
 function SlotHeading({ slot }: { slot: Slot }) {
   return (
-    <h2 className="text-[10px] uppercase tracking-[0.24em] text-[var(--color-muted)]">{SLOT_LABEL[slot]}</h2>
+    <h2 className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)]">{SLOT_LABEL[slot]}</h2>
   );
 }
 
@@ -279,7 +280,7 @@ function EmptyDay({
   if (shopDay && shopDay.meals > 0) {
     return (
       <div className="rounded-2xl border border-dashed border-[var(--color-line)] px-5 py-8 text-center">
-        <div className="text-3xl" aria-hidden>🧺</div>
+        <BasketIcon size={34} className="mx-auto text-[var(--color-clay)]" />
         <p className="font-display-italic mt-2 text-2xl text-[var(--color-body)]">Shop day.</p>
         <p className="mt-2 text-sm text-[var(--color-muted)]">
           {shopDay.items > 0
@@ -294,7 +295,11 @@ function EmptyDay({
   }
   return (
     <div className="rounded-2xl border border-dashed border-[var(--color-line)] px-5 py-10 text-center">
-      <div className="text-3xl" aria-hidden>{sunday ? "🌤️" : "🍽️"}</div>
+      {sunday ? (
+        <SunIcon size={34} className="mx-auto text-[var(--color-mustard)]" />
+      ) : (
+        <PlateIcon size={34} className="mx-auto text-[var(--color-faint)]" />
+      )}
       <p className="font-display-italic mt-2 text-2xl text-[var(--color-body)]">
         {sunday ? "Sunday — rest day." : "Nothing planned for today."}
       </p>
@@ -392,10 +397,12 @@ export function MealCard({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={thumb(recipe.image_url, big ? 800 : 200)!} alt="" className="h-full w-full object-cover" loading="lazy" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-3xl">{custom ? "🥣" : "🍽️"}</div>
+            <div className="flex h-full w-full items-center justify-center text-[var(--color-faint)]">
+              {custom ? <BowlIcon size={big ? 36 : 28} /> : <PlateIcon size={big ? 36 : 28} />}
+            </div>
           )}
           {cooked && (
-            <span className="absolute left-2 top-2 rounded-full bg-[var(--color-sage)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[var(--color-cream)]">
+            <span className="absolute left-2 top-2 rounded-full bg-[var(--color-sage)] px-2 py-0.5 text-[11px] uppercase tracking-[0.08em] text-[var(--color-cream)]">
               Cooked
             </span>
           )}
@@ -421,7 +428,7 @@ export function MealCard({
           )}
           {meal.note && (
             <p className="mt-2 rounded-lg bg-[var(--color-mustard)]/12 px-2.5 py-1.5 text-xs text-[var(--color-ink)]">
-              <span className="mr-1 text-[10px] uppercase tracking-[0.14em] text-[var(--color-terra-dark)]">Note</span>
+              <span className="mr-1 text-[11px] uppercase tracking-[0.08em] text-[var(--color-terra-dark)]">Note</span>
               {meal.note}
             </p>
           )}
@@ -457,7 +464,7 @@ export function MealCard({
           {/* The moment to judge a dish is right after eating it. Planners only (RatingStars hides itself). */}
           {cooked && !custom && !leftover && meal.recipe_id && (
             <div className="mt-2 flex items-center gap-2">
-              <span className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-faint)]">Rate it</span>
+              <span className="text-[11px] uppercase tracking-[0.08em] text-[var(--color-faint)]">Rate it</span>
               <RatingStars recipeId={meal.recipe_id} initial={recipe?.rating ?? null} compact />
             </div>
           )}

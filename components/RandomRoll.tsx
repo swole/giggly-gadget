@@ -92,7 +92,7 @@ export function RandomRoll({ recipes }: { recipes: Recipe[] }) {
         )}
 
         <div className="flex flex-1 flex-col justify-center px-4 py-3 sm:px-5">
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-[var(--color-terra)]">
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-[var(--color-terra)]">
             <Die size={15} className={spinning ? "animate-dice" : ""} />
             <span>Tonight&rsquo;s pick</span>
           </div>
