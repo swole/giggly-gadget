@@ -231,11 +231,11 @@ export function WeekPlanner({
               )}
             </p>
           </div>
-          <nav className="flex items-center gap-1.5 text-[12px] uppercase tracking-[0.06em]">
-            <Link href={`/plan?week=${prev}`} className="btn-quiet px-3 py-1.5">
+          <nav className="flex shrink-0 items-center gap-1.5 text-[12px] uppercase tracking-[0.06em]">
+            <Link href={`/plan?week=${prev}`} className="btn-quiet whitespace-nowrap px-3 py-1.5">
               ← Prev
             </Link>
-            <Link href={`/plan?week=${next}`} className="btn-quiet px-3 py-1.5">
+            <Link href={`/plan?week=${next}`} className="btn-quiet whitespace-nowrap px-3 py-1.5">
               Next →
             </Link>
           </nav>
@@ -257,11 +257,11 @@ export function WeekPlanner({
             </span>
           ))}
           {canEdit && (
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
               {meals.length > 0 && (
                 <button
                   onClick={() => setRollSheet({ kind: "week" })}
-                  className="btn-primary px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em]"
+                  className="btn-primary whitespace-nowrap px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em]"
                 >
                   <Die size={13} /> Randomize
                 </button>

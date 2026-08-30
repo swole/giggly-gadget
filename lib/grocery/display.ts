@@ -6,6 +6,7 @@
 // Display-time only: nothing here touches stored rows, reconcile keys or scaling.
 
 import { renderQty } from "@/lib/scale";
+import { canonicalIngredientName } from "@/lib/ingredients/normalize";
 
 export type DisplayRow = {
   /** Quantity text for the fixed gutter, e.g. "1½", "2", "" (unquantified). */
@@ -33,7 +34,7 @@ const DISCRETE_UNITS = new Set([
 
 // Pseudo-units the parser leaves inside the name ("1.2 packs fresh yakisoba noodles"
 // has qty 1.2, no unit, name "packs fresh yakisoba noodles").
-const PSEUDO_UNIT_RE = /^(packs?|heads?|blocks?|sheets?|knobs?|tins?|tubs?|punnets?)\s+(.+)$/;
+const PSEUDO_UNIT_RE = /^(packs?|heads?|blocks?|sheets?|knobs?|thumbs?|tins?|tubs?|punnets?)\s+(.+)$/;
 
 // "grated ginger" as a row makes the shopper hunt for pre-grated ginger. Show the
 // buyable thing and keep the prep as the note.
@@ -63,7 +64,7 @@ function pluralizeName(name: string, qty: number): string {
 // Word units pluralize ("2 packs"); measurement abbreviations never do ("200 g").
 const PLURALIZABLE_UNITS = new Set([
   "cup", "pack", "can", "jar", "bottle", "slice", "piece", "bunch", "sprig", "stalk",
-  "clove", "head", "handful", "knob", "block", "sheet", "tin", "tub", "punnet",
+  "clove", "head", "handful", "knob", "thumb", "block", "sheet", "tin", "tub", "punnet",
 ]);
 function pluralizeUnit(unit: string, qty: number): string {
   if (qty <= 1 || !PLURALIZABLE_UNITS.has(unit)) return unit;
@@ -74,7 +75,9 @@ const fmt = (min: number, max: number | null) =>
   max === null || max === min ? renderQty(min) : `${renderQty(min)}–${renderQty(max)}`;
 
 export function displayGroceryRow(row: RowInput): DisplayRow {
-  let name = row.name;
+  // Rows stored before the alias merge still read canonically ("scallions" shows
+  // as spring onion); the actual merge happens on the next rebuild.
+  let name = canonicalIngredientName(row.name);
   let unit = row.unit;
   const qtyMin = row.qty_min;
   const qtyMax = row.qty_max;
