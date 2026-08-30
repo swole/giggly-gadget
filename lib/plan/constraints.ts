@@ -38,7 +38,46 @@ export function classifyProtein(title: string, ingredientNames: string[]): Set<P
   return out;
 }
 
-export type ConstraintStatus = { key: string; label: string; count: number; target: string; ok: boolean };
+// Three postures, three voices: a met rail nods, an unmet floor says what's left,
+// a broken cap says it in words — "Chicken ×3 — cap is 1", not an inequality to
+// parse while planning dinner.
+export type ConstraintState = "met" | "pending" | "violated";
+export type ConstraintStatus = {
+  key: string;
+  label: string;
+  count: number;
+  target: string;
+  ok: boolean;
+  state: ConstraintState;
+  /** Ready-to-render sentence for the chip. */
+  text: string;
+};
+
+const floorStatus = (key: string, label: string, count: number, floor: number, unit: string): ConstraintStatus => {
+  const met = count >= floor;
+  return {
+    key,
+    label,
+    count,
+    target: `≥ ${floor}`,
+    ok: met,
+    state: met ? "met" : "pending",
+    text: met ? `${label} ${count} ✓` : `${floor - count} more ${unit}`,
+  };
+};
+
+const capStatus = (key: string, label: string, count: number, cap: number): ConstraintStatus => {
+  const met = count <= cap;
+  return {
+    key,
+    label,
+    count,
+    target: `≤ ${cap}`,
+    ok: met,
+    state: met ? "met" : "violated",
+    text: met ? `${label} ${count} of ${cap} ✓` : `${label} ×${count} — cap is ${cap}`,
+  };
+};
 
 /**
  * The week's floors and caps from the dietitian plan.
@@ -58,8 +97,8 @@ export function weekConstraintStatus(
     if (c.has("prawn") || c.has("seafood")) shellfish++;
   }
   return [
-    { key: "oily_fish", label: "Oily fish", count: oily, target: "≥ 3", ok: oily >= 3 },
-    { key: "chicken", label: "Chicken", count: chicken, target: "≤ 1", ok: chicken <= 1 },
-    { key: "shellfish", label: "Prawn / seafood", count: shellfish, target: "≤ 2", ok: shellfish <= 2 },
+    floorStatus("oily_fish", "Oily fish", oily, 3, "oily fish"),
+    capStatus("chicken", "Chicken", chicken, 1),
+    capStatus("shellfish", "Prawn / seafood", shellfish, 2),
   ];
 }

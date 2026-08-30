@@ -51,4 +51,17 @@ describe("weekConstraintStatus", () => {
     expect(s.find((x) => x.key === "chicken")).toMatchObject({ count: 1, ok: true });
     expect(s.find((x) => x.key === "shellfish")).toMatchObject({ count: 2, ok: true });
   });
+
+  test("three postures speak in words", () => {
+    const meals = [
+      { recipe_id: "b", slot: "dinner", leftover_of: null },
+      { recipe_id: "b", slot: "lunch", leftover_of: null },
+      { recipe_id: "b", slot: "breakfast", leftover_of: null },
+    ];
+    const classes = { b: ["chicken" as const] };
+    const s = weekConstraintStatus(meals, classes);
+    expect(s.find((x) => x.key === "chicken")).toMatchObject({ state: "violated", text: "Chicken ×3 — cap is 1" });
+    expect(s.find((x) => x.key === "oily_fish")).toMatchObject({ state: "pending", text: "3 more oily fish" });
+    expect(s.find((x) => x.key === "shellfish")).toMatchObject({ state: "met", text: "Prawn / seafood 0 of 2 ✓" });
+  });
 });

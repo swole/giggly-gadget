@@ -7,7 +7,7 @@
 
 import { thumb } from "@/lib/images";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { NewPlannedMeal, PlannedMeal, PlannerRecipe, Slot } from "@/lib/plan/types";
 import { mealTitle, SLOT_LABEL } from "@/lib/plan/types";
 import { usePlannedMeals } from "@/lib/plan/usePlannedMeals";
@@ -52,6 +52,7 @@ export function WeekPlanner({
   recipes,
   classByRecipe,
   proteinByRecipe,
+  autoForward = false,
 }: {
   weekOf: string;
   today: string;
@@ -59,6 +60,7 @@ export function WeekPlanner({
   recipes: PlannerRecipe[];
   classByRecipe: Record<string, ProteinClass[]>;
   proteinByRecipe: Record<string, { j: number; l: number }>;
+  autoForward?: boolean;
 }) {
   const role = useRole();
   const canEdit = isPlanner(role);
@@ -73,6 +75,18 @@ export function WeekPlanner({
   const [rollToast, setRollToast] = useState<RollToast | null>(null);
   const [rollBusy, setRollBusy] = useState(false);
   const [justRolled, setJustRolled] = useState<Set<number>>(new Set());
+  // First-run teach-in-place for the two invisible gestures (replaces the old
+  // footer caption nobody scrolled to). Gone forever after "Got it" or a first use.
+  const [showGestureTip, setShowGestureTip] = useState(false);
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem("gg-gesture-tip-v1")) setShowGestureTip(true);
+    } catch {}
+  }, []);
+  function dismissGestureTip() {
+    setShowGestureTip(false);
+    try { localStorage.setItem("gg-gesture-tip-v1", "1"); } catch {}
+  }
 
   const byId = useMemo(() => {
     const m: Record<string, PlannerRecipe> = {};
@@ -108,27 +122,6 @@ export function WeekPlanner({
   function flash(ids: number[]) {
     setJustRolled(new Set(ids));
     setTimeout(() => setJustRolled(new Set()), 1200);
-  }
-
-  /** Dice on an empty slot: instant roll with the saved theme. */
-  async function rollSlot(day: string, slot: Slot) {
-    const theme = themeSummary(loadSavedTheme());
-    const j = await rollRequest({ days: [day], slots: [slot] });
-    if (!j) return showRollToast({ text: "No connection — try again.", theme: null });
-    if (j.error) return showRollToast({ text: j.error, theme: null });
-    if (j.added.length === 0) {
-      return showRollToast({ text: `No ${SLOT_LABEL[slot].toLowerCase()} matches the theme`, theme, again: () => setRollSheet({ kind: "day", day }) });
-    }
-    void refetch();
-    flash(j.added_ids);
-    const added = j.added[0];
-    showRollToast({
-      text: `Rolled ${mealTitle(added, byId)}`,
-      theme,
-      again: () => void rerollIds(j.added_ids, theme),
-      undo: () => void remove(added.id),
-      undoLabel: "Undo",
-    });
   }
 
   /** Re-roll exactly the given rows (used by toast "Again"). */
@@ -222,9 +215,19 @@ export function WeekPlanner({
         <div className="mt-3 flex items-end justify-between gap-3">
           <div>
             <h1 className="font-display-italic text-4xl leading-none text-[var(--color-ink)] sm:text-5xl">
-              {isCurrent ? "This week" : "Week of"}
+              {isCurrent ? "This week" : autoForward ? "Next week" : "Week of"}
             </h1>
-            <p className="mt-2 text-sm text-[var(--color-muted)]">{formatWeekRange(weekOf)}</p>
+            <p className="mt-2 text-sm text-[var(--color-muted)]">
+              {formatWeekRange(weekOf)}
+              {autoForward && (
+                <>
+                  {" · "}
+                  <Link href={`/plan?week=${prev}`} className="text-[var(--color-terra-dark)] underline-offset-2 hover:underline">
+                    still in {formatWeekRange(prev)} ←
+                  </Link>
+                </>
+              )}
+            </p>
           </div>
           <nav className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em]">
             <Link href={`/plan?week=${prev}`} className="btn-quiet px-3 py-1.5">
@@ -240,25 +243,29 @@ export function WeekPlanner({
             <span
               key={c.key}
               title={`${c.label}: ${c.count} this week, target ${c.target}`}
-              className={`rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] ${
-                c.ok
-                  ? "border-[var(--color-sage)]/60 bg-[var(--color-card)] text-[var(--color-sage)]"
-                  : "border-[var(--color-terra)]/60 bg-[var(--color-card)] text-[var(--color-terra-dark)]"
-              }`}
+              className={
+                c.state === "violated"
+                  ? "rounded-full bg-[var(--color-terra)] px-3 py-1 text-[11px] font-semibold text-[var(--color-cream)] shadow-[0_1px_4px_-1px_rgba(92,31,18,0.5)]"
+                  : c.state === "met"
+                    ? "py-1 text-[11px] font-medium text-[var(--color-sage)]"
+                    : "py-1 text-[11px] text-[var(--color-muted)]"
+              }
             >
-              {c.label} {c.count} <span className="opacity-70">{c.target}</span>
+              {c.text}
             </span>
           ))}
           {canEdit && (
             <div className="ml-auto flex items-center gap-2">
-              <button
-                onClick={() => setRollSheet({ kind: "week" })}
-                className="btn-primary px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em]"
-              >
-                <Die size={13} /> Randomize
-              </button>
+              {meals.length > 0 && (
+                <button
+                  onClick={() => setRollSheet({ kind: "week" })}
+                  className="btn-primary px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em]"
+                >
+                  <Die size={13} /> Randomize
+                </button>
+              )}
               <ShareWeekButton weekOf={weekOf} meals={meals} byId={byId} />
-              <Link href={`/plan/print?week=${weekOf}`} className="btn-quiet px-3 py-1.5 text-[10px] uppercase tracking-[0.18em]">
+              <Link href={`/plan/print?week=${weekOf}`} className="btn-quiet px-3 py-1.5 text-[11px] uppercase tracking-[0.08em]">
                 Print
               </Link>
               <WeekActionsMenu weekOf={weekOf} onDone={() => void refetch()} />
@@ -271,6 +278,18 @@ export function WeekPlanner({
           </p>
         )}
       </header>
+
+      {canEdit && meals.length > 0 && showGestureTip && (
+        <div className="mb-5 flex items-start justify-between gap-3 rounded-2xl bg-[var(--color-paper-2)]/50 px-4 py-3 text-xs leading-relaxed text-[var(--color-body)]">
+          <span>
+            Tap the <span className="rounded-full border border-[var(--color-line)] bg-[var(--color-paper)]/60 px-1.5 py-0.5 text-[10px] font-semibold">J+L</span> badge
+            on any meal to change who&rsquo;s eating. The ⋯ holds notes, a themed swap, and remove.
+          </span>
+          <button onClick={dismissGestureTip} className="btn-quiet shrink-0 px-3 py-1 text-[11px] uppercase tracking-[0.08em]">
+            Got it
+          </button>
+        </div>
+      )}
 
       {canEdit && meals.length === 0 && (
         <div className="card-lift mb-5 rounded-2xl border border-dashed border-[var(--color-terra)]/50 bg-[var(--color-card)] px-4 py-4 sm:px-5">
@@ -305,7 +324,7 @@ export function WeekPlanner({
             onNote={setNoteFor}
             onCycleEaters={(m) => patch(m.id, { eaters: nextEaters(m.eaters) })}
             onRollDay={() => setRollSheet({ kind: "day", day: d })}
-            onRollSlot={(slot) => void rollSlot(d, slot)}
+            onRollSlot={(slot) => setRollSheet({ kind: "slot", day: d, slot })}
             onPickAnother={(m) => void pickAnother(m)}
           />
         ))}
@@ -340,7 +359,7 @@ export function WeekPlanner({
                 onNote={setNoteFor}
                 onCycleEaters={(m) => patch(m.id, { eaters: nextEaters(m.eaters) })}
                 onRollDay={() => setRollSheet({ kind: "day", day: days[6] })}
-                onRollSlot={(slot) => void rollSlot(days[6], slot)}
+                onRollSlot={(slot) => setRollSheet({ kind: "slot", day: days[6], slot })}
                 onPickAnother={(m) => void pickAnother(m)}
                 bare
               />
@@ -349,16 +368,13 @@ export function WeekPlanner({
         </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)]">
-        {canEdit && !hasSnacks && (
-          <button onClick={() => setShowSnacks((v) => !v)} className="hover:text-[var(--color-terra)]">
+      {canEdit && !hasSnacks && (
+        <div className="mt-6">
+          <button onClick={() => setShowSnacks((v) => !v)} className="btn-quiet px-3 py-1.5 text-[11px] uppercase tracking-[0.08em]">
             {showSnacks ? "Hide snack row" : "+ Snack row"}
           </button>
-        )}
-        <span className="ml-auto text-[var(--color-faint)]">
-          Tap J+L to cycle who&rsquo;s eating · ⋯ for a note or to remove
-        </span>
-      </div>
+        </div>
+      )}
 
       {rollToast && !undo && (
         <div className="fixed inset-x-4 bottom-24 z-40 mx-auto max-w-md rounded-2xl bg-[var(--color-ink)] px-4 py-3 text-sm text-[var(--color-cream)] shadow-xl" role="status">
@@ -552,10 +568,10 @@ function DayCard({
           const ms = meals.filter((m) => m.slot === slot);
           return (
             <div key={slot} className="flex gap-3 border-b border-[var(--color-line)]/40 px-2 py-2 last:border-b-0">
-              <div className="w-16 shrink-0 pt-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--color-muted)]">
+              <div className="w-16 shrink-0 pt-2 text-[11px] font-medium uppercase tracking-[0.1em] text-[var(--color-muted)]">
                 {SLOT_LABEL[slot]}
               </div>
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+              <div className="flex min-w-0 flex-1 flex-col items-stretch gap-1.5">
                 {ms.map((m) => (
                   <MealChip
                     key={m.id}
@@ -569,27 +585,29 @@ function DayCard({
                     onPickAnother={() => onPickAnother(m)}
                   />
                 ))}
-                {canEdit && (
-                  <button
-                    onClick={() => onAdd(slot)}
-                    className="inline-flex min-h-9 items-center rounded-full border border-dashed border-[var(--color-line)] bg-[var(--color-paper)]/25 px-3 text-[11px] font-medium text-[var(--color-muted)] transition-colors hover:border-[var(--color-terra)] hover:bg-[var(--color-terra)]/5 hover:text-[var(--color-terra)]"
-                    aria-label={`Add to ${SLOT_LABEL[slot]}`}
-                  >
-                    + Add
-                  </button>
-                )}
-                {canEdit && ms.length === 0 && (
-                  <button
-                    onClick={() => onRollSlot(slot)}
-                    disabled={rollBusy}
-                    className="inline-flex min-h-9 items-center rounded-full border border-dashed border-[var(--color-line)] bg-[var(--color-paper)]/25 px-2.5 text-sm leading-none text-[var(--color-muted)] transition-colors hover:border-[var(--color-terra)] hover:bg-[var(--color-terra)]/5 hover:text-[var(--color-terra)] disabled:opacity-50"
-                    title={`Roll a random ${SLOT_LABEL[slot].toLowerCase()}`}
-                    aria-label={`Roll a random ${SLOT_LABEL[slot].toLowerCase()}`}
-                  >
-                    <Die size={14} className={rollBusy ? "animate-dice" : ""} />
-                  </button>
-                )}
-                {!canEdit && ms.length === 0 && <span className="text-xs text-[var(--color-faint)]">—</span>}
+                <div className="flex items-center gap-1.5">
+                  {canEdit && (
+                    <button
+                      onClick={() => onAdd(slot)}
+                      className="inline-flex min-h-9 items-center rounded-full border border-dashed border-[var(--color-line)] bg-[var(--color-paper)]/25 px-3 text-[12px] font-medium text-[var(--color-muted)] transition-colors hover:border-[var(--color-terra)] hover:bg-[var(--color-terra)]/5 hover:text-[var(--color-terra)]"
+                      aria-label={`Add to ${SLOT_LABEL[slot]}`}
+                    >
+                      + Add
+                    </button>
+                  )}
+                  {canEdit && ms.length === 0 && (
+                    <button
+                      onClick={() => onRollSlot(slot)}
+                      disabled={rollBusy}
+                      className="inline-flex min-h-9 items-center rounded-full border border-dashed border-[var(--color-line)] bg-[var(--color-paper)]/25 px-2.5 text-sm leading-none text-[var(--color-muted)] transition-colors hover:border-[var(--color-terra)] hover:bg-[var(--color-terra)]/5 hover:text-[var(--color-terra)] disabled:opacity-50"
+                      title={`Surprise ${SLOT_LABEL[slot].toLowerCase()} — pick a theme and roll`}
+                      aria-label={`Surprise ${SLOT_LABEL[slot].toLowerCase()} — pick a theme and roll`}
+                    >
+                      <Die size={14} className={rollBusy ? "animate-dice" : ""} />
+                    </button>
+                  )}
+                  {!canEdit && ms.length === 0 && <span className="text-xs text-[var(--color-faint)]">—</span>}
+                </div>
               </div>
             </div>
           );
@@ -621,26 +639,34 @@ function MealChip({
   const cooked = !!meal.cooked_at;
   const pending = meal.id < 0;
   const [menu, setMenu] = useState(false);
+  useEffect(() => {
+    if (!menu) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenu(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menu]);
   return (
-    <span className="relative inline-flex max-w-full">
+    <span className="relative block w-full">
       <span
-        className={`inline-flex max-w-full items-center gap-1.5 rounded-full border py-1 pl-1 pr-1 text-xs shadow-[0_1px_3px_-1px_rgba(85,55,25,0.3)] ${
+        className={`flex w-full items-center gap-2.5 rounded-xl border py-1.5 pl-1.5 pr-1 text-[13px] shadow-[0_1px_3px_-1px_rgba(85,55,25,0.3)] ${
           cooked
             ? "border-[var(--color-sage)]/60 bg-[var(--color-sage)]/10"
             : "border-[var(--color-line)] bg-[var(--color-card)]"
         } ${pending ? "opacity-60" : ""} ${flash ? "animate-rolled-in" : ""}`}
       >
-        <span className={`flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full ${meal.recipe_id === null ? "border border-dashed border-[var(--color-line)] bg-[var(--color-paper)]/40 text-[11px] text-[var(--color-muted)]" : "bg-[var(--color-paper-2)]"}`}>
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg ${meal.recipe_id === null ? "border border-[var(--color-line)] bg-[var(--color-paper)]/40 text-[13px] text-[var(--color-muted)]" : "bg-[var(--color-paper-2)]"}`}>
           {meal.recipe_id === null ? (
             <span aria-hidden>✎</span>
           ) : recipe?.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={thumb(recipe.image_url, 64)!} alt="" className="h-full w-full object-cover" loading="lazy" />
-          ) : null}
+            <img src={thumb(recipe.image_url, 96)!} alt="" className="h-full w-full object-cover" loading="lazy" />
+          ) : (
+            <span aria-hidden className="font-display text-sm text-[var(--color-faint)]">{(recipe?.title ?? "?").slice(0, 1)}</span>
+          )}
         </span>
         {meal.recipe_id === null ? (
           <span
-            className={`line-clamp-2 max-w-[13rem] leading-tight text-[var(--color-ink)] ${cooked ? "line-through" : ""}`}
+            className={`line-clamp-2 min-w-0 flex-1 leading-tight text-[var(--color-ink)] ${cooked ? "line-through" : ""}`}
             title={meal.custom_text ?? undefined}
           >
             {meal.custom_text}
@@ -649,7 +675,7 @@ function MealChip({
         ) : (
         <Link
           href={`/recipes/${meal.recipe_id}?eaters=${meal.eaters}&pm=${meal.id}`}
-          className={`line-clamp-2 max-w-[13rem] leading-tight text-[var(--color-ink)] hover:text-[var(--color-terra)] ${cooked ? "line-through" : ""}`}
+          className={`line-clamp-2 min-w-0 flex-1 leading-tight text-[var(--color-ink)] hover:text-[var(--color-terra)] ${cooked ? "line-through" : ""}`}
           title={recipe?.title}
         >
           {meal.leftover_of !== null && <span className="text-[var(--color-muted)]">Leftovers · </span>}
@@ -657,37 +683,37 @@ function MealChip({
           {meal.note && <span className="ml-1 text-[var(--color-terra-dark)]" title={meal.note} aria-label="has a note">✎</span>}
         </Link>
         )}
-        <button
-          onClick={canEdit ? onCycleEaters : undefined}
-          disabled={!canEdit}
-          className={`inline-flex min-h-7 items-center rounded-full px-2 text-[9px] font-semibold uppercase tracking-[0.12em] ${
-            meal.eaters === "both"
-              ? "bg-[var(--color-ink)] text-[var(--color-cream)]"
-              : "bg-[var(--color-mustard)] text-[var(--color-ink)]"
-          } ${canEdit ? "hover:bg-[var(--color-terra)] hover:text-[var(--color-cream)]" : ""}`}
-          title="Who's eating (tap to change)"
-          aria-label={`Who's eating: ${EATERS_SHORT[meal.eaters]}. Tap to change.`}
-        >
-          {EATERS_SHORT[meal.eaters]}
-        </button>
-        {canEdit && (
+        <span className="flex shrink-0 items-center gap-1">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setMenu((v) => !v);
-            }}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[var(--color-faint)] hover:bg-[var(--color-paper-2)] hover:text-[var(--color-ink)]"
-            aria-label={`Options for ${recipe?.title ?? "meal"}`}
-            aria-expanded={menu}
+            onClick={canEdit ? onCycleEaters : undefined}
+            disabled={!canEdit}
+            className={`inline-flex min-h-7 items-center rounded-full border border-[var(--color-line)] bg-[var(--color-paper)]/50 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-body)] ${
+              canEdit ? "hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]" : ""
+            }`}
+            title="Who's eating (tap to change)"
+            aria-label={`Who's eating: ${EATERS_SHORT[meal.eaters]}. Tap to change.`}
           >
-            ⋯
+            {EATERS_SHORT[meal.eaters]}
           </button>
-        )}
+          {canEdit && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenu((v) => !v);
+              }}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-faint)] hover:bg-[var(--color-paper-2)] hover:text-[var(--color-ink)]"
+              aria-label={`Options for ${recipe?.title ?? "meal"}`}
+              aria-expanded={menu}
+            >
+              ⋯
+            </button>
+          )}
+        </span>
       </span>
       {menu && (
         <>
           <span className="fixed inset-0 z-20" onClick={() => setMenu(false)} aria-hidden />
-          <span className="absolute left-0 top-full z-30 mt-1 w-48 overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] text-sm shadow-lg" role="menu">
+          <span className="absolute right-0 top-full z-30 mt-1 w-48 overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] text-sm shadow-lg" role="menu">
             <button role="menuitem" onClick={() => { setMenu(false); onNote(); }} className="block min-h-11 w-full px-4 text-left hover:bg-[var(--color-paper)]/60">
               {meal.note ? "Edit note" : "Add a note for the cook"}
             </button>

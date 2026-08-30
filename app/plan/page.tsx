@@ -1,7 +1,7 @@
 import { WeekPlanner } from "@/components/plan/WeekPlanner";
 import { getPlannedMealsForWeek, listPlannerRecipes } from "@/lib/plan/queries";
 import { analyseRecipes } from "@/lib/plan/analysis";
-import { currentWeekMonday, isValidYmd, todayInTz, weekMondayOf } from "@/lib/week";
+import { addDays, currentWeekMonday, isoDow, isValidYmd, todayInTz, weekMondayOf } from "@/lib/week";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,12 @@ export default async function PlanPage({
   searchParams: Promise<{ week?: string }>;
 }) {
   const { week } = await searchParams;
-  const weekOf = isValidYmd(week) ? weekMondayOf(week) : currentWeekMonday();
+  // Planning happens on weekends for the week ahead: from Friday (isoDow ≥ 4, Mon=0)
+  // the default week pivots forward, same rule as the grocery page's shop banner.
+  // An explicit ?week always wins; the planner shows a one-line way back.
+  const today = todayInTz();
+  const autoForward = !isValidYmd(week) && isoDow(today) >= 4;
+  const weekOf = isValidYmd(week) ? weekMondayOf(week) : autoForward ? addDays(currentWeekMonday(), 7) : currentWeekMonday();
   const [meals, recipes, analysis] = await Promise.all([
     getPlannedMealsForWeek(weekOf),
     listPlannerRecipes(),
@@ -21,11 +26,12 @@ export default async function PlanPage({
     <WeekPlanner
       key={weekOf}
       weekOf={weekOf}
-      today={todayInTz()}
+      today={today}
       initialMeals={meals}
       recipes={recipes}
       classByRecipe={analysis.classByRecipe}
       proteinByRecipe={analysis.proteinByRecipe}
+      autoForward={autoForward}
     />
   );
 }

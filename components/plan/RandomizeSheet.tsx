@@ -14,7 +14,7 @@ import type { ConstraintStatus } from "@/lib/plan/constraints";
 import { formatDayLong, weekDates } from "@/lib/week";
 import { Die } from "./Die";
 
-export type RollScope = { kind: "week" } | { kind: "day"; day: string };
+export type RollScope = { kind: "week" } | { kind: "day"; day: string } | { kind: "slot"; day: string; slot: Slot };
 
 const THEME_KEY = "gg-roll-theme-v1";
 const ROLL_SLOTS: Slot[] = ["breakfast", "lunch", "dinner"];
@@ -80,7 +80,8 @@ export function RandomizeSheet({
   }, [onClose]);
 
   const days = useMemo(() => weekDates(weekOf), [weekOf]);
-  const scopeDays = scope.kind === "day" ? [scope.day] : includeSunday ? days : days.slice(0, 6);
+  const scopeDays = scope.kind === "week" ? (includeSunday ? days : days.slice(0, 6)) : [scope.day];
+  const scopeSlots = scope.kind === "slot" ? [scope.slot] : ROLL_SLOTS;
 
   // What the roll can actually touch, given mode + cooked protection.
   const { fillable, cookedKept } = useMemo(() => {
@@ -92,7 +93,7 @@ export function RandomizeSheet({
     const cells: { day: string; slot: Slot }[] = [];
     let kept = 0;
     for (const d of scopeDays) {
-      for (const s of ROLL_SLOTS) {
+      for (const s of scopeSlots) {
         const cellMeals = byCell.get(`${d}|${s}`) ?? [];
         const cooked = cellMeals.some((m) => m.cooked_at !== null);
         if (cooked) kept += cellMeals.length;
@@ -101,7 +102,8 @@ export function RandomizeSheet({
       }
     }
     return { fillable: cells, cookedKept: kept };
-  }, [meals, scopeDays, mode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meals, scopeDays.join(","), scopeSlots.join(","), mode]);
 
   const pool = useMemo(() => filterPool(recipes, filters), [recipes, filters]);
   const slotGaps = useMemo(() => {
@@ -130,9 +132,11 @@ export function RandomizeSheet({
       const body =
         replaceIds && replaceIds.length > 0
           ? { week_of: weekOf, filters, replace_ids: replaceIds }
-          : scope.kind === "day"
-            ? { week_of: weekOf, days: [scope.day], filters, mode }
-            : { week_of: weekOf, filters, mode, include_sunday: includeSunday };
+          : scope.kind === "slot"
+            ? { week_of: weekOf, days: [scope.day], slots: [scope.slot], filters, mode }
+            : scope.kind === "day"
+              ? { week_of: weekOf, days: [scope.day], filters, mode }
+              : { week_of: weekOf, filters, mode, include_sunday: includeSunday };
       const res = await fetch("/api/plan/randomize", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -155,7 +159,12 @@ export function RandomizeSheet({
 
   const themeCount = [filters.source, filters.healthy, filters.quick, filters.wantToTry, filters.favourites]
     .filter(Boolean).length + (filters.cuisines?.length ? 1 : 0);
-  const scopeLabel = scope.kind === "day" ? formatDayLong(scope.day) : "this week";
+  const scopeLabel =
+    scope.kind === "slot"
+      ? `${formatDayLong(scope.day)} ${SLOT_LABEL[scope.slot].toLowerCase()}`
+      : scope.kind === "day"
+        ? formatDayLong(scope.day)
+        : "this week";
   const chip = (on: boolean, label: string, onClick: () => void) => (
     <button key={label} onClick={onClick} data-on={on} className="chip-toggle shrink-0 px-3 py-1.5 text-[10px] uppercase tracking-[0.14em]">
       {label}
@@ -177,12 +186,12 @@ export function RandomizeSheet({
         <div className="px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5">
           <div className="flex items-baseline justify-between">
             <div>
-              <div className="text-[10px] uppercase tracking-[0.24em] text-[var(--color-muted)]">
-                Randomize · {scope.kind === "day" ? formatDayLong(scope.day) : "Week"}
+              <div className="text-[11px] uppercase tracking-[0.2em] text-[var(--color-muted)]">
+                Randomize · {scope.kind === "week" ? "Week" : scope.kind === "day" ? formatDayLong(scope.day) : `${formatDayLong(scope.day)} · ${SLOT_LABEL[scope.slot]}`}
               </div>
               <h2 id="roll-title" className="font-display-italic mt-1 flex items-center gap-2 text-2xl text-[var(--color-ink)]">
                 <Die size={24} className={`shrink-0 text-[var(--color-terra)] ${busy ? "animate-dice" : ""}`} />
-                Roll {scope.kind === "day" ? "the day" : "the week"}
+                Roll {scope.kind === "week" ? "the week" : scope.kind === "day" ? "the day" : SLOT_LABEL[scope.slot].toLowerCase()}
               </h2>
             </div>
             <button onClick={onClose} className="btn-quiet px-3 py-1 text-[10px] uppercase tracking-[0.18em]">
@@ -205,14 +214,18 @@ export function RandomizeSheet({
             {chip(!!filters.favourites, "★ Favourites", () => upd({ favourites: !filters.favourites }))}
           </div>
           <div className="mt-3 text-[10px] uppercase tracking-[0.2em] text-[var(--color-muted)]">Cuisine</div>
-          <div className="scrollbar-none -mx-5 mt-2 flex gap-2 overflow-x-auto px-5 pb-1">
+          {/* Edge fade tells the thumb there are more chips off-screen. */}
+          <div
+            className="scrollbar-none -mx-5 mt-2 flex gap-2 overflow-x-auto px-5 pb-1"
+            style={{ WebkitMaskImage: "linear-gradient(to right, black 0, black calc(100% - 2.5rem), transparent 100%)", maskImage: "linear-gradient(to right, black 0, black calc(100% - 2.5rem), transparent 100%)" }}
+          >
             {cuisines.map((c) => chip((filters.cuisines ?? []).includes(c), c, () => toggleCuisine(c)))}
           </div>
 
           {/* Honest availability line */}
           <div className="mt-4 rounded-xl border border-[var(--color-line-soft)] bg-[var(--color-paper)]/45 px-3.5 py-2.5 text-xs text-[var(--color-body)]">
             <span className="font-semibold">{pool.length}</span> {themeCount ? "match the theme" : "dishes in the pantry"} ·{" "}
-            <span className="font-semibold">{fillable.length}</span> {mode === "replace" ? "slots to re-roll" : "empty slots"} {scope.kind === "day" ? "" : "Mon–Sat"}
+            <span className="font-semibold">{fillable.length}</span> {mode === "replace" ? (fillable.length === 1 ? "slot to re-roll" : "slots to re-roll") : (fillable.length === 1 ? "empty slot" : "empty slots")} {scope.kind === "week" ? "Mon–Sat" : ""}
             {cookedKept > 0 && <span className="text-[var(--color-sage)]"> · {cookedKept} cooked kept</span>}
             {slotGaps.length > 0 && fillable.length > 0 && (
               <div className="mt-1 text-[11px] text-[var(--color-terra-dark)]">
@@ -260,10 +273,19 @@ export function RandomizeSheet({
                 <span className="font-semibold">{result.added} {result.added === 1 ? "meal" : "meals"} rolled in.</span>
                 {result.unfilled > 0 && <span className="text-[var(--color-terra-dark)]"> {result.unfilled} left open (no match).</span>}
               </p>
-              <div className="mt-2 flex flex-wrap gap-1.5">
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
                 {result.constraints.map((c) => (
-                  <span key={c.key} className={`rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-[0.14em] ${c.ok ? "border-[var(--color-sage)]/60 bg-[var(--color-card)] text-[var(--color-sage)]" : "border-[var(--color-terra)]/60 bg-[var(--color-card)] text-[var(--color-terra-dark)]"}`}>
-                    {c.label} {c.count} <span className="opacity-70">{c.target}</span> {c.ok ? "✓" : ""}
+                  <span
+                    key={c.key}
+                    className={
+                      c.state === "violated"
+                        ? "rounded-full bg-[var(--color-terra)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--color-cream)]"
+                        : c.state === "met"
+                          ? "text-[11px] font-medium text-[var(--color-sage)]"
+                          : "text-[11px] text-[var(--color-muted)]"
+                    }
+                  >
+                    {c.text}
                   </span>
                 ))}
               </div>
