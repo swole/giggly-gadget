@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { ScaleMode } from "@/lib/scale";
 import { EATERS, EATERS_LABEL, type Eaters } from "@/lib/portions";
 
@@ -15,15 +16,18 @@ export function ScaleControl({ baseServings, mode, onChange }: Props) {
   const isMealPrep = mode.kind === "mealPrep";
   const activeServings = mode.kind === "servings" ? mode.target : null;
   const activeEaters: Eaters | null = mode.kind === "eaters" ? mode.eaters : null;
+  // Nine always-open options was a control panel; the daily case is the household
+  // row. Servings/meal-prep unfold on request (and stay open once in use).
+  const [showServings, setShowServings] = useState(mode.kind !== "eaters");
 
   return (
     <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-2)]/40 p-4">
       <div className="flex items-baseline justify-between">
-        <span className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted)]">
+        <span className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)]">
           Scale
         </span>
         {baseServings && (
-          <span className="text-[10px] text-[var(--color-faint)]">
+          <span className="text-[11px] text-[var(--color-faint)]">
             originally serves {baseServings}
           </span>
         )}
@@ -36,38 +40,52 @@ export function ScaleControl({ baseServings, mode, onChange }: Props) {
             {EATERS_LABEL[e]}
           </button>
         ))}
-      </div>
-      <div className="mt-3 flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-[var(--color-faint)]">
-        <span className="h-px flex-1 bg-[var(--color-line)]/60" />
-        or scale by servings
-        <span className="h-px flex-1 bg-[var(--color-line)]/60" />
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        {SERVING_PRESETS.map((s) => (
+        {!showServings && (
           <button
-            key={s}
-            onClick={() => onChange({ kind: "servings", target: s })}
-            className={pill(activeServings === s)}
+            onClick={() => setShowServings(true)}
+            className="rounded-full px-3 py-1.5 text-xs font-medium text-[var(--color-muted)] transition-colors hover:text-[var(--color-terra)]"
+            aria-expanded={false}
           >
-            {s}{" "}
-            <span className="text-[var(--color-faint)]">{s === 1 ? "serving" : "servings"}</span>
+            By servings ▾
           </button>
-        ))}
-
-        <button
-          onClick={() =>
-            onChange(
-              isMealPrep
-                ? { kind: "servings", target: baseServings ?? 2 }
-                : { kind: "mealPrep", days: 5, servingsPerDay: 1 }
-            )
-          }
-          className={pill(isMealPrep)}
-        >
-          Meal prep
-        </button>
+        )}
       </div>
+
+      {showServings && (
+        <>
+          <div className="mt-3 flex items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-[var(--color-faint)]">
+            <span className="h-px flex-1 bg-[var(--color-line)]/60" />
+            or scale by servings
+            <span className="h-px flex-1 bg-[var(--color-line)]/60" />
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {SERVING_PRESETS.map((s) => (
+              <button
+                key={s}
+                onClick={() => onChange({ kind: "servings", target: s })}
+                className={pill(activeServings === s)}
+              >
+                {s}{" "}
+                <span className={activeServings === s ? "" : "text-[var(--color-faint)]"}>{s === 1 ? "serving" : "servings"}</span>
+              </button>
+            ))}
+
+            <button
+              onClick={() =>
+                onChange(
+                  isMealPrep
+                    ? { kind: "servings", target: baseServings ?? 2 }
+                    : { kind: "mealPrep", days: 5, servingsPerDay: 1 }
+                )
+              }
+              className={pill(isMealPrep)}
+            >
+              Meal prep
+            </button>
+          </div>
+        </>
+      )}
 
       {isMealPrep && mode.kind === "mealPrep" && (
         <div className="mt-4 grid grid-cols-2 gap-3">

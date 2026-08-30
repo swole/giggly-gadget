@@ -47,7 +47,9 @@ export function AddToGroceryButton({ recipeId, scaleFactor, eaters }: Props) {
     <button
       onClick={add}
       disabled={state === "loading"}
-      className="group relative w-full rounded-lg border-2 border-[var(--color-terra-dark)] bg-[var(--color-terra)] px-5 py-3 text-sm font-medium text-[var(--color-cream)] shadow-sm transition-all hover:bg-[var(--color-terra-dark)] hover:shadow-md disabled:opacity-60"
+      // Quiet on purpose: the list already follows the plan by itself — this is the
+      // manual override, not the page's main act (that's Start cooking).
+      className="group relative w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-card)] px-5 py-3 text-sm font-medium text-[var(--color-body)] shadow-[0_1px_3px_-1px_rgba(92,65,40,0.25)] transition-all hover:border-[var(--color-terra)] hover:text-[var(--color-terra)] disabled:opacity-60"
     >
       <span className="inline-flex items-center gap-2">
         <span>{state === "done" ? "✓" : "+"}</span>

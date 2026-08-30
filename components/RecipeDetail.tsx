@@ -69,16 +69,42 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
         {plannedMealId ? "← Kitchen" : "← Recipes"}
       </Link>
 
-      {recipe.image_url && (
-        <div className="mt-6 overflow-hidden rounded-2xl border border-[var(--color-line)] shadow-sm">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={recipe.image_url}
-            alt={recipe.title}
-            className="aspect-[16/9] w-full object-cover"
-          />
-        </div>
-      )}
+      {recipe.image_url &&
+        (recipe.source_url && detectVideo(recipe.source_url) ? (
+          // The image IS the video's thumbnail — make it the play button. This is the
+          // affordance Shallaine actually recognises; the card at the bottom reinforces.
+          <a
+            href={recipe.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative mt-6 block overflow-hidden rounded-2xl border border-[var(--color-line)] shadow-sm"
+            aria-label={`Watch the original video for ${recipe.title}`}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={recipe.image_url}
+              alt={recipe.title}
+              className="aspect-[16/9] w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            />
+            <span className="absolute inset-0 flex items-center justify-center bg-[var(--color-ink)]/10 transition-colors group-hover:bg-[var(--color-ink)]/20">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-terra)] pl-1 text-xl text-[var(--color-cream)] shadow-lg transition-transform group-hover:scale-105">
+                ▶
+              </span>
+            </span>
+            <span className="absolute bottom-3 right-3 rounded-full bg-[var(--color-ink)]/70 px-2.5 py-1 text-[11px] font-medium text-[var(--color-cream)] backdrop-blur-sm">
+              Watch the original
+            </span>
+          </a>
+        ) : (
+          <div className="mt-6 overflow-hidden rounded-2xl border border-[var(--color-line)] shadow-sm">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={recipe.image_url}
+              alt={recipe.title}
+              className="aspect-[16/9] w-full object-cover"
+            />
+          </div>
+        ))}
 
       <header className="mt-8 border-b border-[var(--color-line)] pb-8">
         <div className="flex items-center justify-between gap-2">
@@ -104,37 +130,20 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
           {total !== null && <span>◷ {total} min</span>}
           {recipe.difficulty && <span>◆ {recipe.difficulty}</span>}
           {recipe.servings && <span>⊙ originally serves {recipe.servings}</span>}
+          {recipe.rating !== null && recipe.rating > 0 && (
+            <span className="text-[var(--color-mustard)]" title="Household rating">
+              ★ {String(recipe.rating).replace(/\.0$/, "")}
+            </span>
+          )}
         </div>
-        {curator && (
-          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
-            <RatingStars recipeId={recipe.id} initial={recipe.rating} />
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          {curator && <PlanThisButton recipeId={recipe.id} mealType={recipe.meal_type} title={recipe.title} nudge={justCreated} />}
+          {curator && (
             <WantToTryStar
               recipeId={recipe.id}
               initial={recipe.want_to_try}
               variant="inline"
             />
-          </div>
-        )}
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          {curator && <PlanThisButton recipeId={recipe.id} mealType={recipe.meal_type} title={recipe.title} nudge={justCreated} />}
-          {recipe.source_url && (
-            <a
-              href={recipe.source_url}
-              target="_blank"
-              rel="noreferrer"
-              className="btn-quiet gap-2 px-4 text-[11px] uppercase tracking-[0.18em]"
-            >
-              {detectVideo(recipe.source_url)?.platform === "youtube" ? (
-                "▶ Watch the video"
-              ) : detectVideo(recipe.source_url)?.platform === "tiktok" ? (
-                <>
-                  <TikTokIcon />
-                  Watch on TikTok
-                </>
-              ) : (
-                "↗ Source"
-              )}
-            </a>
           )}
         </div>
       </header>
@@ -166,19 +175,21 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
           ))}
         </ul>
 
+        {/* Cooking is the page's main act — it owns the terracotta. The grocery list
+            already follows the plan by itself, so its manual button goes quiet. */}
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Link
+            href={`/recipes/${recipe.id}/cook${plannedMealId ? `?pm=${plannedMealId}` : ""}`}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-[var(--color-terra-dark)] bg-[var(--color-terra)] px-5 py-3 text-sm font-medium text-[var(--color-cream)] shadow-sm transition-all hover:bg-[var(--color-terra-dark)] hover:shadow-md"
+          >
+            <span>◷</span>
+            Start cooking
+          </Link>
           <AddToGroceryButton
             recipeId={recipe.id}
             scaleFactor={factor}
             eaters={mode.kind === "eaters" ? mode.eaters : undefined}
           />
-          <Link
-            href={`/recipes/${recipe.id}/cook${plannedMealId ? `?pm=${plannedMealId}` : ""}`}
-            className="group flex w-full items-center justify-center gap-2 rounded-lg border-2 border-[var(--color-terra)] bg-[var(--color-card)] px-5 py-3 text-sm font-medium text-[var(--color-terra)] transition-all hover:bg-[var(--color-terra)] hover:text-[var(--color-cream)] hover:shadow-md"
-          >
-            <span>◷</span>
-            Start cooking
-          </Link>
         </div>
       </section>
 
@@ -189,9 +200,9 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
             {steps.map((step, i) => (
               <li
                 key={i}
-                className="flex gap-4 text-sm leading-relaxed text-[var(--color-body)]"
+                className="flex gap-4 text-base leading-relaxed text-[var(--color-body)]"
               >
-                <span className="font-display text-[var(--color-terra)] text-lg leading-none tabular-nums w-7 shrink-0">
+                <span className="font-display text-[var(--color-muted)] text-lg leading-none tabular-nums w-7 shrink-0">
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <span className="whitespace-pre-wrap">{renderInlineMd(step)}</span>
@@ -199,6 +210,14 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
             ))}
           </ol>
         </section>
+      )}
+
+      {/* The moment to judge a dish is after the method, not before the photo. */}
+      {curator && (
+        <div className="mt-12 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-[var(--color-line)] bg-[var(--color-card)] px-4 py-3.5">
+          <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-[var(--color-muted)]">Cooked it? Rate it</span>
+          <RatingStars recipeId={recipe.id} initial={recipe.rating} />
+        </div>
       )}
 
       {recipe.source_url && <SourceCta url={recipe.source_url} />}
@@ -273,12 +292,4 @@ function hostnameOf(url: string): string {
   } catch {
     return url;
   }
-}
-
-function TikTokIcon() {
-  return (
-    <svg width={12} height={12} viewBox="0 0 16 16" fill="currentColor" aria-hidden className="shrink-0">
-      <path d="M9 0h1.98c.144.715.54 1.617 1.235 2.512C12.895 3.389 13.797 4 15 4v2c-1.753 0-3.07-.814-4-1.829V11a5 5 0 1 1-5-5v2a3 3 0 1 0 3 3z" />
-    </svg>
-  );
 }

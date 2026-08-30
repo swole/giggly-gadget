@@ -32,7 +32,7 @@ export function PlanThisButton({ recipeId, mealType, title, nudge = false }: { r
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--color-line)] px-4 text-[11px] uppercase tracking-[0.18em] text-[var(--color-ink)] transition-colors hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]"
+        className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--color-ink)] px-4 text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--color-cream)] shadow-[0_2px_6px_-1px_rgba(28,15,6,0.35)] transition-colors hover:bg-[var(--color-terra)]"
       >
         <span aria-hidden>▦</span> Plan this
       </button>
