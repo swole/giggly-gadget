@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { Recipe } from "@/lib/recipes";
 import { totalMinutes } from "@/lib/recipes";
 import { thumb } from "@/lib/images";
+import { daypartWord } from "@/lib/daypart";
 import { RecipeCard } from "./RecipeCard";
 import { FilterBar } from "./FilterBar";
 import { RandomRoll } from "./RandomRoll";
@@ -17,6 +18,7 @@ export function Discover({ recipes }: { recipes: Recipe[] }) {
   const [tag, setTag] = useState<string | null>(null);
   const [preview, setPreview] = useState<Recipe | null>(null);
   const greet = useGreeting();
+  const daypart = useDaypart();
   // 185 cards of markup is ~450 KB of HTML on a phone; render a page at a time (filters still see everything).
   const PAGE = 24;
   const [limit, setLimit] = useState(PAGE);
@@ -88,7 +90,7 @@ export function Discover({ recipes }: { recipes: Recipe[] }) {
         </div>
         <h1 className="font-display-italic mt-4 text-5xl leading-[0.95] text-[var(--color-ink)] sm:text-7xl">
           What&rsquo;s for{" "}
-          <span className="text-[var(--color-terra-dark)]">dinner</span>?
+          <span className="text-[var(--color-terra-dark)]">{daypart}</span>?
         </h1>
         <p className="mt-4 max-w-xl text-sm text-[var(--color-muted)]">
           {greet}. Pick something you&rsquo;ll actually want to cook — filter
@@ -250,6 +252,13 @@ const noop = () => () => {};
 /** Device-local greeting without a hydration mismatch: the server says "Hungry", the client takes over after mount. */
 function useGreeting(): string {
   return useSyncExternalStore(noop, greeting, () => "Hungry");
+}
+
+/** The headline follows the clock — a library with all three dayparts shouldn't
+    ask "What's for dinner?" over morning coffee. Server says "dinner" (most
+    visits are evening); the client corrects after mount, same as the greeting. */
+function useDaypart(): string {
+  return useSyncExternalStore(noop, () => daypartWord(new Date().getHours()), () => "dinner");
 }
 
 function greeting(): string {
