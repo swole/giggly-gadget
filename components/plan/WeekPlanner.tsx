@@ -209,8 +209,8 @@ export function WeekPlanner({
     <main className="relative z-10 mx-auto max-w-2xl px-4 pb-10 pt-6 sm:px-6 sm:pt-10">
       <header className="mb-6">
         <div className="flex items-baseline justify-between">
-          <span className="text-[10px] uppercase tracking-[0.32em] text-[var(--color-muted)]">Plan</span>
-          <span className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-faint)]">
+          <span className="text-[11px] uppercase tracking-[0.28em] text-[var(--color-muted)]">Plan</span>
+          <span className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-faint)]">
             {status === "live" ? "● live" : status === "reconnecting" ? "○ reconnecting" : ""}
           </span>
         </div>

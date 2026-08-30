@@ -17,15 +17,19 @@ import { useRole } from "@/components/role/RoleProvider";
 import { MarkCookedButton } from "./MarkCookedButton";
 import { RatingStars } from "@/components/RatingStars";
 
+/** From Friday: next week's shop, so an empty today can say something useful. */
+export type ShopAhead = { week: string; meals: number; items: number } | null;
+
 type Props = {
   today: string; // YYYY-MM-DD in SG
   initialMeals: PlannedMeal[];
   recipes: Record<string, PlannerRecipe>;
   /** Prep-ahead sentences per recipe (marinate, soak, thaw…) shown on tomorrow's cards. */
   hintsByRecipe?: Record<string, string[]>;
+  shopAhead?: ShopAhead;
 };
 
-export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {} }: Props) {
+export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {}, shopAhead = null }: Props) {
   const role = useRole();
   const router = useRouter();
   const planner = isPlanner(role);
@@ -72,9 +76,10 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {} }
     <main className="relative z-10 mx-auto max-w-2xl px-4 pb-10 pt-6 sm:px-6 sm:pt-10">
       <header className="mb-8">
         <div className="flex items-baseline justify-between">
-          <span className="text-[10px] uppercase tracking-[0.32em] text-[var(--color-muted)]">Kitchen</span>
-          <span className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-faint)]" aria-live="polite">
-            {status === "live" ? "● live" : status === "reconnecting" ? "○ reconnecting" : ""}
+          <span className="text-[11px] uppercase tracking-[0.28em] text-[var(--color-muted)]">Kitchen</span>
+          {/* The live dot is plumbing — planners see it; everyone sees when it's NOT live. */}
+          <span className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-faint)]" aria-live="polite">
+            {status === "reconnecting" ? "○ reconnecting" : status === "live" && planner ? "● live" : ""}
           </span>
         </div>
         <div className="mt-3 flex items-end justify-between gap-4">
@@ -88,7 +93,19 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {} }
 
       {/* TODAY */}
       {todayMeals.length === 0 ? (
-        <EmptyDay planner={planner} sunday={isoDow(today) === 6} />
+        <EmptyDay
+          planner={planner}
+          sunday={isoDow(today) === 6}
+          shopDay={isoDow(today) === 5 ? shopAhead : null}
+          nextPlanned={(() => {
+            for (let i = 1; i <= 6; i++) {
+              const d = addDays(today, i);
+              const n = (byDay.get(d) ?? []).length;
+              if (n > 0) return { day: d, count: n };
+            }
+            return null;
+          })()}
+        />
       ) : (
         <div className="space-y-4">
           {allDone && (
@@ -138,15 +155,17 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {} }
         ) : (
           <div className="mt-3 space-y-2">
             {tomorrowMeals.map((m) => (
-              <div key={m.id}>
-                <MealCard meal={m} recipe={m.recipe_id ? recipes[m.recipe_id] : undefined} />
-                {m.leftover_of === null && m.recipe_id !== null && (hintsByRecipe[m.recipe_id]?.length ?? 0) > 0 && (
-                  <div className="mx-2 -mt-1 rounded-b-xl border border-t-0 border-[var(--color-mustard)]/40 bg-[var(--color-mustard)]/10 px-3 py-2 text-xs text-[var(--color-ink)]">
-                    <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-terra-dark)]">Tonight</span>
-                    {hintsByRecipe[m.recipe_id!].join(" · ")}
-                  </div>
-                )}
-              </div>
+              <MealCard
+                key={m.id}
+                meal={m}
+                recipe={m.recipe_id ? recipes[m.recipe_id] : undefined}
+                future
+                hint={
+                  m.leftover_of === null && m.recipe_id !== null && (hintsByRecipe[m.recipe_id]?.length ?? 0) > 0
+                    ? hintsByRecipe[m.recipe_id].join(" · ")
+                    : undefined
+                }
+              />
             ))}
           </div>
         )}
@@ -244,22 +263,59 @@ function SlotHeading({ slot }: { slot: Slot }) {
   );
 }
 
-function EmptyDay({ planner, sunday }: { planner: boolean; sunday: boolean }) {
+// An empty state that knows the calendar: shop day points at the list, a planned
+// week ahead says so, and only a genuinely blank horizon asks anyone to plan.
+function EmptyDay({
+  planner,
+  sunday,
+  shopDay,
+  nextPlanned,
+}: {
+  planner: boolean;
+  sunday: boolean;
+  shopDay: ShopAhead;
+  nextPlanned: { day: string; count: number } | null;
+}) {
+  if (shopDay && shopDay.meals > 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-[var(--color-line)] px-5 py-8 text-center">
+        <div className="text-3xl" aria-hidden>🧺</div>
+        <p className="font-display-italic mt-2 text-2xl text-[var(--color-body)]">Shop day.</p>
+        <p className="mt-2 text-sm text-[var(--color-muted)]">
+          {shopDay.items > 0
+            ? `${shopDay.items} item${shopDay.items === 1 ? "" : "s"} ready for next week's ${shopDay.meals} meal${shopDay.meals === 1 ? "" : "s"}.`
+            : `Next week has ${shopDay.meals} meal${shopDay.meals === 1 ? "" : "s"} planned — the list builds on the next plan change.`}
+        </p>
+        <Link href={`/grocery?week=${shopDay.week}`} className="btn-primary mt-4 px-5 text-[11px] uppercase tracking-[0.08em]">
+          Open the shopping list →
+        </Link>
+      </div>
+    );
+  }
   return (
     <div className="rounded-2xl border border-dashed border-[var(--color-line)] px-5 py-10 text-center">
-      <div className="text-3xl">{sunday ? "🌤️" : "🍽️"}</div>
+      <div className="text-3xl" aria-hidden>{sunday ? "🌤️" : "🍽️"}</div>
       <p className="font-display-italic mt-2 text-2xl text-[var(--color-body)]">
         {sunday ? "Sunday — rest day." : "Nothing planned for today."}
       </p>
-      {planner ? (
+      {nextPlanned && (
+        <p className="mt-2 text-sm text-[var(--color-muted)]">
+          {formatDayLabel(nextPlanned.day)} is ready — {nextPlanned.count} meal{nextPlanned.count === 1 ? "" : "s"} planned.
+        </p>
+      )}
+      {planner && !nextPlanned ? (
         <Link
           href="/plan"
-          className="btn-ink mt-4 px-5 text-[10px] uppercase tracking-[0.18em]"
+          className="btn-primary mt-4 px-5 text-[11px] uppercase tracking-[0.08em]"
         >
           Plan the week →
         </Link>
+      ) : planner ? (
+        <Link href="/plan" className="btn-quiet mt-4 px-4 py-1.5 text-[11px] uppercase tracking-[0.08em]">
+          Open the planner →
+        </Link>
       ) : (
-        !sunday && <p className="mt-2 text-xs text-[var(--color-faint)]">Johnny or Lydia will add today&rsquo;s meals.</p>
+        !sunday && !nextPlanned && <p className="mt-2 text-xs text-[var(--color-faint)]">Johnny or Lydia will add today&rsquo;s meals.</p>
       )}
     </div>
   );
@@ -278,10 +334,16 @@ export function MealCard({
   meal,
   recipe,
   big = false,
+  future = false,
+  hint,
 }: {
   meal: PlannedMeal;
   recipe: PlannerRecipe | undefined;
   big?: boolean;
+  /** Tomorrow's cards: prep hints and the recipe, but no "Mark cooked" on a meal that hasn't happened. */
+  future?: boolean;
+  /** Prep-ahead sentence rendered inside the card ("Tonight — soak the shiitake"). */
+  hint?: string;
 }) {
   const custom = meal.recipe_id === null;
   const title = custom ? (meal.custom_text ?? "One-off") : (recipe?.title ?? "Recipe");
@@ -375,20 +437,22 @@ export function MealCard({
             {!custom && (
               <Link
                 href={href}
-                className={`inline-flex items-center rounded-full border border-[var(--color-line)] font-medium uppercase tracking-[0.16em] text-[var(--color-ink)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)] ${
-                  big ? "min-h-11 px-4 text-[11px]" : "min-h-9 px-3 text-[10px]"
+                className={`inline-flex items-center rounded-full border border-[var(--color-line)] font-medium uppercase tracking-[0.08em] text-[var(--color-ink)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)] ${
+                  big ? "min-h-11 px-4 text-[11px]" : "min-h-9 px-3 text-[11px]"
                 }`}
               >
                 {big ? "Recipe" : "Open recipe"}
               </Link>
             )}
-            <MarkCookedButton
-              recipeId={meal.recipe_id}
-              plannedMealId={meal.id}
-              cookedAt={meal.cooked_at}
-              size={big ? "md" : "sm"}
-              onCooked={celebrate}
-            />
+            {!future && (
+              <MarkCookedButton
+                recipeId={meal.recipe_id}
+                plannedMealId={meal.id}
+                cookedAt={meal.cooked_at}
+                size={big ? "md" : "sm"}
+                onCooked={celebrate}
+              />
+            )}
           </div>
           {/* The moment to judge a dish is right after eating it. Planners only (RatingStars hides itself). */}
           {cooked && !custom && !leftover && meal.recipe_id && (
@@ -399,6 +463,13 @@ export function MealCard({
           )}
         </div>
       </div>
+      {/* Prep hint lives inside the card it belongs to — no orphan strip between cards. */}
+      {hint && (
+        <div className="border-t border-[var(--color-mustard)]/40 bg-[var(--color-mustard)]/10 px-4 py-2 text-xs text-[var(--color-ink)]">
+          <span className="mr-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-terra-dark)]">Tonight</span>
+          {hint}
+        </div>
+      )}
     </article>
   );
 }
