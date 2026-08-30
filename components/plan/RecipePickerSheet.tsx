@@ -10,7 +10,7 @@ import { SLOT_LABEL, SLOT_MEAL_TYPES } from "@/lib/plan/types";
 import { suggestPairings } from "@/lib/plan/pairing";
 import { formatDayLong } from "@/lib/week";
 
-type Filter = "slot" | "heart" | "try" | "quick" | "recent" | "pairs";
+type Filter = "slot" | "heart" | "try" | "quick" | "recent" | "pairs" | "lydia" | "faves";
 
 export type LeftoverCandidate = { id: number; recipe_id: string; planned_for: string; slot: Slot; title: string };
 
@@ -62,8 +62,11 @@ export function RecipePickerSheet({
   const [q, setQ] = useState("");
   const [mode, setMode] = useState<"recipes" | "leftovers">("recipes");
   const [filters, setFilters] = useState<Set<Filter>>(new Set([pairWith.length > 0 ? "pairs" : "slot"]));
+  // The deeper cuts (cuisine, Lydia's picks, ★4+) live behind one inline "Filters ▾"
+  // chip — expanding IN the sheet, never a second sheet on top of this one.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [cuisine, setCuisine] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [recentCustoms] = useState<string[]>(() => (typeof window === "undefined" ? [] : loadRecentCustoms()));
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -84,6 +87,14 @@ export function RecipePickerSheet({
     });
   }
 
+  const cuisines = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of recipes) if (r.cuisine) counts.set(r.cuisine, (counts.get(r.cuisine) ?? 0) + 1);
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c).slice(0, 12);
+  }, [recipes]);
+
+  const advancedCount = (filters.has("lydia") ? 1 : 0) + (filters.has("faves") ? 1 : 0) + (cuisine ? 1 : 0);
+
   const list = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const mealTypes = SLOT_MEAL_TYPES[slot];
@@ -98,13 +109,17 @@ export function RecipePickerSheet({
         const t = (r.prep_min ?? 0) + (r.cook_min ?? 0);
         if (t === 0 || t > 30) return false;
       }
+      // Same union as the randomizer: her tag OR anything she added herself.
+      if (filters.has("lydia") && !(r.source === "Lydia" || (r.tags ?? []).includes("Lydia"))) return false;
+      if (filters.has("faves") && !((r.rating ?? 0) >= 4)) return false;
+      if (cuisine && r.cuisine !== cuisine) return false;
       return true;
     });
     if (filters.has("recent")) {
       out = out.slice().sort((a, b) => (b.last_made ?? "").localeCompare(a.last_made ?? ""));
     }
     return out;
-  }, [recipes, q, filters, slot, pairWith]);
+  }, [recipes, q, filters, slot, pairWith, cuisine]);
 
   async function pick(id: string) {
     setBusy(id);
@@ -194,27 +209,50 @@ export function RecipePickerSheet({
             placeholder="Search recipes…"
             className="mt-4 w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)]/50 px-4 py-3 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-faint)] focus:border-[var(--color-terra)] focus:outline-none"
           />
-          <div className="scrollbar-none -mx-5 mt-3 flex gap-2 overflow-x-auto px-5 pb-3">
+          <div
+            className="scrollbar-none -mx-5 mt-3 flex gap-2 overflow-x-auto px-5 pb-3"
+            style={{ WebkitMaskImage: "linear-gradient(to right, black 0, black calc(100% - 2rem), transparent 100%)", maskImage: "linear-gradient(to right, black 0, black calc(100% - 2rem), transparent 100%)" }}
+          >
             {pairWith.length > 0 && chip("pairs", `Pairs with ${pairWith[0].title.length > 22 ? pairWith[0].title.slice(0, 22) + "…" : pairWith[0].title}`)}
             {chip("slot", SLOT_LABEL[slot])}
             {chip("heart", "Heart healthy")}
             {chip("try", "Want to try")}
             {chip("quick", "≤ 30 min")}
             {chip("recent", "Recent")}
+            <button
+              onClick={() => setMoreOpen((v) => !v)}
+              aria-expanded={moreOpen}
+              className={`shrink-0 rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.08em] transition-colors ${
+                moreOpen || advancedCount > 0
+                  ? "border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-cream)]"
+                  : "border-[var(--color-line)] text-[var(--color-muted)] hover:border-[var(--color-terra)]"
+              }`}
+            >
+              Filters{advancedCount > 0 ? ` · ${advancedCount}` : ""} {moreOpen ? "▴" : "▾"}
+            </button>
           </div>
-          {onPickCustom && !q.trim() && recentCustoms.length > 0 && (
-            <div className="scrollbar-none -mx-5 flex items-center gap-2 overflow-x-auto px-5 pb-3">
-              <span className="shrink-0 text-[10px] uppercase tracking-[0.16em] text-[var(--color-faint)]">One-offs</span>
-              {recentCustoms.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => void pickCustom(t)}
-                  disabled={busy !== null}
-                  className="shrink-0 rounded-full border border-dashed border-[var(--color-line)] bg-[var(--color-paper)]/30 px-3 py-1 text-[11px] text-[var(--color-body)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)] disabled:opacity-60"
-                >
-                  {busy === `custom:${t}` ? "…" : `+ ${t}`}
-                </button>
-              ))}
+          {moreOpen && (
+            <div className="pb-3">
+              <div
+                className="scrollbar-none -mx-5 flex gap-2 overflow-x-auto px-5"
+                style={{ WebkitMaskImage: "linear-gradient(to right, black 0, black calc(100% - 2rem), transparent 100%)", maskImage: "linear-gradient(to right, black 0, black calc(100% - 2rem), transparent 100%)" }}
+              >
+                {chip("lydia", "Lydia’s picks")}
+                {chip("faves", "★ 4+")}
+                {cuisines.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setCuisine((cur) => (cur === c ? null : c))}
+                    className={`shrink-0 rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.08em] transition-colors ${
+                      cuisine === c
+                        ? "border-[var(--color-terra)] bg-[var(--color-terra)] text-[var(--color-cream)]"
+                        : "border-[var(--color-line)] text-[var(--color-muted)] hover:border-[var(--color-terra)]"
+                    }`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           </>
