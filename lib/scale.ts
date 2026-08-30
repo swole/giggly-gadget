@@ -15,9 +15,16 @@ export function scaleFactor(originalServings: number | null | undefined, mode: S
   return (mode.days * mode.servingsPerDay) / base;
 }
 
-// Render a number as a mixed fraction when sensible: 1.5 -> "1 1/2", 0.25 -> "1/4"
-// Tolerance lets near-fractions round to clean fractions for display.
+// Render a number as a mixed fraction when sensible: 1.5 -> "1½", 0.25 -> "¼".
+// Unicode vulgar fractions, tight against the whole number — "1 1/2" in the old
+// spaced form read as "11/2" (eleven halves) at display sizes, a real shopper bug.
+// Every denominator we emit (2, 3, 4, 6, 8) has a Unicode form, so there is no
+// ASCII fallback path.
 const COMMON_DENOMS = [2, 3, 4, 6, 8];
+const VULGAR: Record<string, string> = {
+  "1/2": "½", "1/3": "⅓", "2/3": "⅔", "1/4": "¼", "3/4": "¾",
+  "1/6": "⅙", "5/6": "⅚", "1/8": "⅛", "3/8": "⅜", "5/8": "⅝", "7/8": "⅞",
+};
 export function renderQty(value: number): string {
   if (!Number.isFinite(value)) return "";
   if (value === 0) return "0";
@@ -31,9 +38,10 @@ export function renderQty(value: number): string {
   for (const d of COMMON_DENOMS) {
     for (let n = 1; n < d; n++) {
       if (Math.abs(frac - n / d) < 0.02) {
-        const reduced = reduce(n, d);
-        if (whole > 0) return `${sign}${whole} ${reduced[0]}/${reduced[1]}`;
-        return `${sign}${reduced[0]}/${reduced[1]}`;
+        const [rn, rd] = reduce(n, d);
+        const glyph = VULGAR[`${rn}/${rd}`];
+        if (whole > 0) return `${sign}${whole}${glyph}`;
+        return `${sign}${glyph}`;
       }
     }
   }

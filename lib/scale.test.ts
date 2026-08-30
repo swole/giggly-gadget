@@ -5,16 +5,17 @@ describe("renderQty", () => {
     expect(renderQty(2)).toBe("2");
     expect(renderQty(10)).toBe("10");
   });
-  test("clean fractions", () => {
-    expect(renderQty(0.5)).toBe("1/2");
-    expect(renderQty(0.25)).toBe("1/4");
-    expect(renderQty(0.75)).toBe("3/4");
-    expect(renderQty(1 / 3)).toBe("1/3");
-    expect(renderQty(2 / 3)).toBe("2/3");
+  test("clean fractions render as vulgar glyphs", () => {
+    expect(renderQty(0.5)).toBe("½");
+    expect(renderQty(0.25)).toBe("¼");
+    expect(renderQty(0.75)).toBe("¾");
+    expect(renderQty(1 / 3)).toBe("⅓");
+    expect(renderQty(2 / 3)).toBe("⅔");
   });
-  test("mixed fractions", () => {
-    expect(renderQty(1.5)).toBe("1 1/2");
-    expect(renderQty(2.25)).toBe("2 1/4");
+  test("mixed fractions sit tight against the whole (no 11/2 misread)", () => {
+    expect(renderQty(1.5)).toBe("1½");
+    expect(renderQty(2.25)).toBe("2¼");
+    expect(renderQty(3.75)).toBe("3¾");
   });
   test("fallback to decimal", () => {
     expect(renderQty(1.7)).toBe("1.7");

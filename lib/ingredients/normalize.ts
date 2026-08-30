@@ -60,16 +60,34 @@ export type GroceryItem = {
   recipe_ids: string[];
 };
 
+// Synonyms that split the shopping pile: the same vegetable under two recipe names
+// shops as two rows ("13 scallions" next to "19 spring onion"). Canonicalize before
+// grouping so they merge. Explicit forms only — no auto-singularization (it mangles
+// words like "couscous"). Egg whites fold into eggs 1:1: at the shop you buy eggs.
+const NAME_ALIAS: Record<string, string> = {
+  "scallion": "spring onion", "scallions": "spring onion",
+  "green onion": "spring onion", "green onions": "spring onion",
+  "spring onions": "spring onion",
+  "cilantro": "coriander", "coriander leaves": "coriander", "fresh coriander": "coriander",
+  "egg white": "egg", "egg whites": "egg", "whole egg": "egg", "whole eggs": "egg", "eggs": "egg",
+  "chili": "chilli", "red chili": "red chilli", "green chili": "green chilli",
+};
+
+export function canonicalIngredientName(name: string): string {
+  const n = name.trim().toLowerCase();
+  return NAME_ALIAS[n] ?? n;
+}
+
 // Dedupe + sum ingredients across recipes. Same-name + same-dimension entries
 // get unit-converted into the largest unit and summed. Different-dimension entries
 // for the same name stay separate.
 export function buildGroceryList(items: GroceryItemInput[]): GroceryItem[] {
-  // group by (name, dimension)
+  // group by (canonical name, dimension) — aliases merge here (scallions = spring onion)
   const groups = new Map<string, GroceryItemInput[]>();
   for (const it of items) {
     if (it.to_taste) continue;
     const dim = dimensionOf(it.unit);
-    const key = `${it.name.toLowerCase()}|${dim}`;
+    const key = `${canonicalIngredientName(it.name)}|${dim}`;
     const arr = groups.get(key) ?? [];
     arr.push(it);
     groups.set(key, arr);
@@ -121,7 +139,7 @@ export function buildGroceryList(items: GroceryItemInput[]): GroceryItem[] {
     }
 
     out.push({
-      name: arr[0].name,
+      name: canonicalIngredientName(arr[0].name),
       qty_min: allScalable && totalMin > 0 ? round1(totalMin) : null,
       qty_max: allScalable && hasMax && totalMax > totalMin ? round1(totalMax) : null,
       unit: canonicalUnit,

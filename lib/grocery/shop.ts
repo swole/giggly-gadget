@@ -17,7 +17,7 @@ export const SHOP_ORDER: Shop[] = ["wet_market", "supermarket", "either"];
 
 // Names that read as produce/protein but are packaged goods → supermarket.
 const PACKAGED_RE =
-  /\b(frozen|canned|tinned|tin of|can of|jars?|dried|dry|smoked|cured|bacon|sausages?|ham|cheese|yogh?urt|milk|butter|nuttelex|margarine|seeds?|nuts?|walnuts?|cashews?|peanuts?|almonds?|hemp|chia|flour|powder|pastes?|sauces?|oils?|vinegars?|stock|broth|extract|hummus|edamame|chickpeas?|lentils?|beans?|soybeans?|tofu skin|wonton skins?|noodles?|bread|rolls?|sourdough|chapatis?|tortillas?|oats|barley|millet|quinoa|freekeh|farro|rice|pasta|kombu|wakame|nori|hijiki|miso|gochujang|doubanjiang|gochugaru|ponzu|harissa|tamarind|belacan|cocoa|syrup|honey|sugar|salt|pepper|spices?|cumin|turmeric|paprika|cinnamon|masala|sumac|shichimi|peppercorns?|sesame)\b/i;
+  /\b(frozen|canned|tinned|tin of|can of|jars?|dried|dry|smoked|cured|bacon|sausages?|ham|cheese|yogh?urt|milk|butter|nuttelex|margarine|seeds?|nuts?|walnuts?|cashews?|peanuts?|almonds?|hemp|chia|flour|starch(?:es)?|powder|pastes?|sauces?|oils?|vinegars?|stock|broth|extract|hummus|edamame|chickpeas?|lentils?|beans?|soybeans?|tofu skin|wonton skins?|noodles?|bread|rolls?|sourdough|chapatis?|tortillas?|oats|barley|millet|quinoa|freekeh|farro|rice|pasta|kombu|wakame|nori|hijiki|miso|gochujang|doubanjiang|gochugaru|ponzu|harissa|tamarind|belacan|cocoa|syrup|honey|sugar|salt|pepper|spices?|cumin|turmeric|paprika|cinnamon|masala|sumac|shichimi|peppercorns?|sesame)\b/i;
 
 // Fresh items that live at the wet market even though the category dictionary may
 // file them under "other" or "protein".

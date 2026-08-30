@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { renderQty } from "@/lib/scale";
+import { displayGroceryRow } from "@/lib/grocery/display";
 import { addDays, currentWeekMonday, formatWeekRange } from "@/lib/week";
 import { CATEGORY_GLYPH, CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/grocery/labels";
 import { SHOP_LABEL, SHOP_ORDER, type Shop } from "@/lib/grocery/shop";
@@ -276,8 +276,9 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
     <main className="relative z-10 mx-auto max-w-2xl px-4 pb-10 pt-6 sm:px-6 sm:pt-10" onClick={() => setMenuFor(null)}>
       <header className="border-b border-[var(--color-line)] pb-5">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-[0.32em] text-[var(--color-muted)]">
-            Grocery <span className="ml-2 text-[var(--color-faint)]">{live === "live" ? "● live" : live === "reconnecting" ? "○ reconnecting" : ""}</span>
+          <span className="text-[11px] uppercase tracking-[0.28em] text-[var(--color-muted)]">
+            {/* The live dot is plumbing — planners see it; the helper only needs to know when it's NOT live. */}
+            Grocery <span className="ml-2 text-[var(--color-faint)]">{live === "reconnecting" ? "○ reconnecting" : live === "live" && canBuild ? "● live" : ""}</span>
           </span>
           <nav className="flex items-center gap-1 text-[10px] uppercase tracking-[0.18em]" aria-label="Week">
             <Link href={`/grocery?week=${addDays(week, -7)}`} className={navBtn} aria-label="Previous week">
@@ -346,7 +347,7 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
           {canBuild && rows.length > 0 && (
             <button
               onClick={clearAll}
-              className="ml-auto min-h-9 text-[10px] uppercase tracking-[0.18em] text-[var(--color-faint)] hover:text-[var(--color-terra)]"
+              className="btn-quiet ml-auto min-h-9 px-3 text-[11px] uppercase tracking-[0.08em] text-[var(--color-terra-dark)]"
             >
               Clear all
             </button>
@@ -565,7 +566,7 @@ function SubstituteSheet({ row, onClose, onApplied }: { row: GroceryRow; onClose
       >
         <div className="flex items-baseline justify-between">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.24em] text-[var(--color-muted)]">Can&rsquo;t find it?</div>
+            <div className="text-[11px] uppercase tracking-[0.2em] text-[var(--color-muted)]">No stock?</div>
             <h2 id="sub-title" className="font-display-italic mt-1 text-2xl text-[var(--color-ink)]">
               Swap {row.substituted_for ?? row.name}
             </h2>
@@ -638,20 +639,23 @@ function GroceryRowItem({
   onRemove: () => void;
   onSubstitute: () => void;
 }) {
-  const qtyText =
-    row.qty_min === null
-      ? ""
-      : row.qty_max === null || row.qty_max === row.qty_min
-        ? renderQty(Number(row.qty_min))
-        : `${renderQty(Number(row.qty_min))}–${renderQty(Number(row.qty_max))}`;
+  // Purchase-unit translation: whole vegetables, bunches, heads, full packs.
+  // The exact recipe math survives as the sub-note.
+  const d = displayGroceryRow({
+    name: row.name,
+    qty_min: row.qty_min === null ? null : Number(row.qty_min),
+    qty_max: row.qty_max === null ? null : Number(row.qty_max),
+    unit: row.unit,
+    category: row.category,
+  });
 
   return (
     <li className="relative">
       <div className="group flex w-full items-center gap-2 border-b border-[var(--color-line)]/60">
-        <button onClick={() => onToggle(row)} className="flex min-h-12 min-w-0 flex-1 items-center gap-3 py-2 text-left" aria-pressed={row.checked}>
+        <button onClick={() => onToggle(row)} className="flex min-h-12 min-w-0 flex-1 items-start gap-3 py-2 text-left" aria-pressed={row.checked}>
           <span
             aria-hidden
-            className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+            className={`mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
               row.checked
                 ? `border-[var(--color-sage)] bg-[var(--color-sage)] text-[var(--color-cream)] ${justTicked ? "animate-tick-in" : ""}`
                 : "border-[var(--color-line)] text-transparent group-hover:border-[var(--color-terra)]"
@@ -659,27 +663,31 @@ function GroceryRowItem({
           >
             ✓
           </span>
-          <span className={`min-w-0 leading-snug ${row.checked ? "text-[var(--color-faint)] line-through" : "text-[var(--color-ink)]"}`}>
-            <span className="font-display mr-1.5 tabular-nums text-[var(--color-terra)]">{qtyText}</span>
-            {row.unit && <span className="mr-1.5 text-[var(--color-muted)]">{row.unit}</span>}
-            <span>{row.name}</span>
+          {/* Fixed qty gutter: right-aligned figures, shared left edge for every name. */}
+          <span className={`w-[4.75rem] shrink-0 pt-px text-right leading-snug ${row.checked ? "text-[var(--color-faint)]" : ""}`}>
+            <span className={`font-semibold tabular-nums ${row.checked ? "" : "text-[var(--color-ink)]"}`}>{d.qty}</span>
+            {d.unit && <span className={`text-[13px] ${row.checked ? "" : "text-[var(--color-muted)]"}`}> {d.unit}</span>}
+          </span>
+          <span className={`min-w-0 flex-1 leading-snug ${row.checked ? "text-[var(--color-faint)] line-through" : "text-[var(--color-ink)]"}`}>
+            <span>{d.name}</span>
             {row.substituted_for && (
-              <span className="ml-2 text-[10px] text-[var(--color-terra-dark)]">for {row.substituted_for}</span>
+              <span className="ml-2 text-[11px] text-[var(--color-terra-dark)]">for {row.substituted_for}</span>
             )}
             {row.staple && (
-              <span className="ml-2 text-[10px] uppercase tracking-[0.12em] text-[var(--color-faint)]">staple</span>
+              <span className="ml-2 text-[11px] uppercase tracking-[0.1em] text-[var(--color-faint)]">staple</span>
             )}
             {row.source === "manual" && (
-              <span className="ml-2 text-[10px] text-[var(--color-faint)]">
+              <span className="ml-2 text-[11px] text-[var(--color-faint)]">
                 {row.added_by ? `added by ${row.added_by}` : "added"}
               </span>
             )}
             {row.recipe_ids.length > 1 && (
-              <span className="ml-2 text-[10px] text-[var(--color-faint)]">× {row.recipe_ids.length} recipes</span>
+              <span className="ml-2 text-[11px] text-[var(--color-faint)]">× {row.recipe_ids.length} recipes</span>
             )}
             {row.checked && row.checked_by && (
-              <span className="ml-2 text-[10px] text-[var(--color-faint)]">· {row.checked_by}</span>
+              <span className="ml-2 text-[11px] text-[var(--color-faint)]">· {row.checked_by}</span>
             )}
+            {d.note && <span className="block text-[11px] leading-tight text-[var(--color-faint)]">{d.note}</span>}
           </span>
         </button>
         <button
@@ -701,7 +709,7 @@ function GroceryRowItem({
           role="menu"
         >
           <button role="menuitem" onClick={onSubstitute} className="block min-h-11 w-full px-4 text-left hover:bg-[var(--color-paper)]/60">
-            <span className="mr-1.5" aria-hidden>🔄</span>Can&rsquo;t find it? Get a swap
+            <span className="mr-1.5" aria-hidden>🔄</span>No stock? Get a swap
           </button>
           {canConfigure && (
             <button role="menuitem" onClick={() => onStaple(!row.staple)} className="block min-h-11 w-full px-4 text-left hover:bg-[var(--color-paper)]/60">

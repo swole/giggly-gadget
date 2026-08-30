@@ -115,6 +115,13 @@ add("spice", [
   "chilli powder", "chilli flakes", "dried chilli flakes", "cinnamon stick", "dried oregano", "toasted rice powder",
 ]);
 
+// Starches and processed forms whose word-level fallback used to hit the raw
+// vegetable ("potato starch" → "potato" → produce, shelved at the wet market).
+add("pantry", [
+  "potato starch", "corn starch", "tapioca starch", "starch", "cornflour", "potato flour",
+  "rice flour", "glutinous rice flour", "chili oil with sediment", "chilli oil with sediment",
+]);
+
 export function singularize(word: string): string {
   // crude but effective for the common food plurals in this dataset
   if (word.endsWith("ies") && word.length > 4) return word.slice(0, -3) + "y"; // berries -> berry
@@ -139,6 +146,14 @@ export function categorize(name: string | null | undefined): Category {
   // Try progressive suffixes of the full name (singularized too)
   for (let i = 0; i < words.length; i++) {
     const sub = words.slice(i).join(" ");
+    if (DICT[sub]) return DICT[sub];
+    const subSing = singularize(sub);
+    if (subSing !== sub && DICT[subSing]) return DICT[subSing];
+  }
+  // Then progressive prefixes, longest first — "chili oil with sediment" should hit
+  // "chili oil" (pantry) before the word-level fallback hits "chili" (produce).
+  for (let i = words.length - 1; i >= 2; i--) {
+    const sub = words.slice(0, i).join(" ");
     if (DICT[sub]) return DICT[sub];
     const subSing = singularize(sub);
     if (subSing !== sub && DICT[subSing]) return DICT[subSing];
