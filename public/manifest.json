@@ -4,8 +4,8 @@
   "description": "What's for dinner? Plan the week, cook from the kitchen view, shop from the list.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f3e6ca",
-  "theme_color": "#f3e6ca",
+  "background_color": "#f7efdc",
+  "theme_color": "#f7efdc",
   "icons": [
     {
       "src": "/icon-192.png",

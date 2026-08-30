@@ -124,7 +124,16 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
               rel="noreferrer"
               className="btn-quiet gap-2 px-4 text-[11px] uppercase tracking-[0.18em]"
             >
-              {detectVideo(recipe.source_url)?.platform === "youtube" ? "▶ Watch the video" : detectVideo(recipe.source_url)?.platform === "tiktok" ? "♪ Watch on TikTok" : "↗ Source"}
+              {detectVideo(recipe.source_url)?.platform === "youtube" ? (
+                "▶ Watch the video"
+              ) : detectVideo(recipe.source_url)?.platform === "tiktok" ? (
+                <>
+                  <TikTokIcon />
+                  Watch on TikTok
+                </>
+              ) : (
+                "↗ Source"
+              )}
             </a>
           )}
         </div>
@@ -264,4 +273,12 @@ function hostnameOf(url: string): string {
   } catch {
     return url;
   }
+}
+
+function TikTokIcon() {
+  return (
+    <svg width={12} height={12} viewBox="0 0 16 16" fill="currentColor" aria-hidden className="shrink-0">
+      <path d="M9 0h1.98c.144.715.54 1.617 1.235 2.512C12.895 3.389 13.797 4 15 4v2c-1.753 0-3.07-.814-4-1.829V11a5 5 0 1 1-5-5v2a3 3 0 1 0 3 3z" />
+    </svg>
+  );
 }

@@ -1,12 +1,13 @@
 @import "tailwindcss";
 
 @theme {
-  /* Rustic kitchen palette — kraft table, bright recipe cards, terracotta actions.
-     V3 contrast pass: the page went kraftier and the cards brighter so surfaces
-     separate; lines and labels dropped a step darker so nothing blends away. */
-  --color-paper: #ecd9b0;       /* kraft table (was #f3e6ca — cards vanished into it) */
-  --color-paper-2: #dfc493;     /* deeper kraft accent */
-  --color-card: #fffaf0;        /* bright cream card — pops off the kraft */
+  /* Rustic kitchen palette — cream page, ivory recipe cards, terracotta actions.
+     V4: kraft table → warm cream (the kraft read as brown). Card/page fill contrast
+     is now slight on purpose; separation is carried by the espresso hairlines and
+     card-lift shadows from V3 — do not soften those back to the pre-V3 values. */
+  --color-paper: #f7efdc;       /* warm cream page (was kraft #ecd9b0) */
+  --color-paper-2: #e9d6ab;     /* sand accent — skeletons, wells, image placeholders */
+  --color-card: #fffdf6;        /* ivory card — one step brighter than the page */
   --color-sand: #d9c08a;
   --color-line: #9c7c46;        /* espresso-wheat hairline, reads at 1px (was #b89a64) */
   --color-line-soft: #c3a771;   /* lighter dividers */
