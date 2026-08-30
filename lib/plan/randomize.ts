@@ -9,7 +9,12 @@ import type { PlannerRecipe, Slot } from "./types";
 import type { ProteinClass } from "./constraints";
 
 export type RollFilters = {
-  /** Notion Source select — "Lydia" | "Johnny" | "Claude". */
+  /**
+   * Whose food: Notion Source select — "Lydia" | "Johnny" | "Claude".
+   * "Lydia" also matches the `Lydia` TAG: her 26 saved-video recipes were
+   * bulk-imported under Source=Johnny/Claude and carry the tag instead, so a
+   * pure source match rolled 0 dishes for the theme the hero copy promises.
+   */
   source?: string | null;
   /** Tags include "Heart Healthy". */
   healthy?: boolean;
@@ -42,7 +47,11 @@ export const ROLL_SLOT_MEAL_TYPES: Record<Slot, string[]> = {
 export function matchesFilters(r: PlannerRecipe, f: RollFilters): boolean {
   // The household has spoken: dishes rated 2 or below never roll again.
   if (r.rating !== null && r.rating <= 2) return false;
-  if (f.source && r.source !== f.source) return false;
+  if (f.source) {
+    const bySource = r.source === f.source;
+    const byPickTag = f.source === "Lydia" && (r.tags ?? []).includes("Lydia");
+    if (!bySource && !byPickTag) return false;
+  }
   if (f.healthy && !(r.tags ?? []).includes("Heart Healthy")) return false;
   if (f.cuisines && f.cuisines.length > 0 && !(r.cuisine && f.cuisines.includes(r.cuisine))) return false;
   if (f.quick) {

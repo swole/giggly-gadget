@@ -201,11 +201,18 @@ export function RandomizeSheet({
             </button>
           </div>
 
-          {/* Theme */}
-          <div className="mt-4 text-[11px] uppercase tracking-[0.12em] text-[var(--color-muted)]">Added by</div>
+          {/* Theme. "Lydia's picks" = her saved-video tag OR anything she added herself
+              (the imports carry Source=Johnny/Claude, so a bare added-by match found 0). */}
+          <div className="mt-4 text-[11px] uppercase tracking-[0.12em] text-[var(--color-muted)]">From</div>
           <div className="mt-2 flex flex-wrap gap-2">
-            {["Lydia", "Johnny", "Claude"].map((s) =>
-              chip(filters.source === s, s, () => upd({ source: filters.source === s ? null : s })),
+            {(
+              [
+                ["Lydia", "Lydia’s picks"],
+                ["Johnny", "Johnny"],
+                ["Claude", "Claude"],
+              ] as const
+            ).map(([s, label]) =>
+              chip(filters.source === s, label, () => upd({ source: filters.source === s ? null : s })),
             )}
           </div>
           <div className="mt-3 text-[11px] uppercase tracking-[0.12em] text-[var(--color-muted)]">Style</div>

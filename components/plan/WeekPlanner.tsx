@@ -27,7 +27,7 @@ const VISIBLE_SLOTS: Slot[] = ["breakfast", "lunch", "dinner"];
 
 function themeSummary(f: RollFilters): string | null {
   const parts = [
-    f.source ? `by ${f.source}` : null,
+    f.source ? (f.source === "Lydia" ? "Lydia’s picks" : `by ${f.source}`) : null,
     f.healthy ? "healthy" : null,
     f.cuisines?.length ? f.cuisines.join("/") : null,
     f.quick ? "≤30 min" : null,

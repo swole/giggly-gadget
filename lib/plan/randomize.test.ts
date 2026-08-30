@@ -40,6 +40,15 @@ describe("filterPool", () => {
     expect(filterPool(all, { source: "Lydia", healthy: true })).toEqual([lydiaHealthy]);
   });
 
+  it("Lydia's picks: the Lydia TAG counts, not just Source=Lydia", () => {
+    // Her 26 saved-video recipes were imported under Source=Johnny with the tag.
+    const taggedImport = recipe({ source: "Johnny", tags: ["Healthy", "Lydia"] });
+    const johnnyOwn = recipe({ source: "Johnny" });
+    expect(filterPool([taggedImport, johnnyOwn, lydiaPlain], { source: "Lydia" })).toEqual([taggedImport, lydiaPlain]);
+    // Johnny/Claude stay pure added-by matches — the tag never leaks into them.
+    expect(filterPool([taggedImport, johnnyOwn, lydiaPlain], { source: "Claude" })).toEqual([]);
+  });
+
   it("healthy AND cuisine", () => {
     expect(filterPool(all, { healthy: true, cuisines: ["Chinese"] })).toEqual([chineseHealthy]);
   });
