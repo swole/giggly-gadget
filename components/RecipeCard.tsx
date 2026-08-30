@@ -75,11 +75,9 @@ export function RecipeCard({
             </span>
           ) : null}
           {recipe.rating ? (
-            <span className="inline-flex items-center gap-0.5 text-[var(--color-mustard)]">
-              {"★".repeat(recipe.rating)}
-              <span className="text-[var(--color-line)]">
-                {"★".repeat(Math.max(0, 5 - recipe.rating))}
-              </span>
+            // Half-star ratings (4.5) exist now — a repeat() of stars truncated them.
+            <span className="inline-flex items-center gap-1 text-[var(--color-mustard)]">
+              ★ {String(recipe.rating).replace(/\.0$/, "")}
             </span>
           ) : null}
         </div>

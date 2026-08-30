@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { Recipe } from "@/lib/recipes";
 import { totalMinutes } from "@/lib/recipes";
+import { thumb } from "@/lib/images";
 import { RecipeCard } from "./RecipeCard";
 import { FilterBar } from "./FilterBar";
 import { RandomRoll } from "./RandomRoll";
@@ -19,6 +20,20 @@ export function Discover({ recipes }: { recipes: Recipe[] }) {
   // 185 cards of markup is ~450 KB of HTML on a phone; render a page at a time (filters still see everything).
   const PAGE = 24;
   const [limit, setLimit] = useState(PAGE);
+  // Two densities: hero cards for browsing moods, a compact list for finding
+  // things. Remembered per device; the picker sheet already proved the row works.
+  const [density, setDensity] = useState<"cards" | "list">("cards");
+  useEffect(() => {
+    // One-shot restore of the device's remembered view — external-system sync on mount.
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (localStorage.getItem("gg-discover-density") === "list") setDensity("list");
+    } catch {}
+  }, []);
+  function pickDensity(d: "cards" | "list") {
+    setDensity(d);
+    try { localStorage.setItem("gg-discover-density", d); } catch {}
+  }
 
   const cuisines = useMemo(
     () =>
@@ -35,6 +50,18 @@ export function Discover({ recipes }: { recipes: Recipe[] }) {
       ).sort(),
     [recipes]
   );
+
+  const cuisineCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const r of recipes) if (r.cuisine) m[r.cuisine] = (m[r.cuisine] ?? 0) + 1;
+    return m;
+  }, [recipes]);
+
+  const tagCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const r of recipes) for (const t of r.tags ?? []) m[t] = (m[t] ?? 0) + 1;
+    return m;
+  }, [recipes]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -77,6 +104,7 @@ export function Discover({ recipes }: { recipes: Recipe[] }) {
         q={q}
         onQ={setQ}
         cuisines={cuisines}
+        cuisineCounts={cuisineCounts}
         activeCuisine={cuisine}
         onCuisine={setCuisine}
         maxTime={maxTime}
@@ -84,17 +112,31 @@ export function Discover({ recipes }: { recipes: Recipe[] }) {
         wantToTryOnly={wantToTry}
         onWantToTry={setWantToTry}
         tags={tags}
+        tagCounts={tagCounts}
         activeTag={tag}
         onTag={setTag}
         total={recipes.length}
         shown={filtered.length}
       />
 
-      <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.slice(0, limit).map((r) => (
-          <RecipeCard key={r.id} recipe={r} onPreview={setPreview} />
-        ))}
+      <div className="mt-6 flex items-center justify-end gap-1" role="group" aria-label="View density">
+        <DensityButton active={density === "cards"} onClick={() => pickDensity("cards")} label="Cards" kind="cards" />
+        <DensityButton active={density === "list"} onClick={() => pickDensity("list")} label="List" kind="list" />
       </div>
+
+      {density === "cards" ? (
+        <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.slice(0, limit).map((r) => (
+            <RecipeCard key={r.id} recipe={r} onPreview={setPreview} />
+          ))}
+        </div>
+      ) : (
+        <ul className="mt-4 overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-card)] shadow-[0_2px_8px_rgba(60,30,10,0.06)]">
+          {filtered.slice(0, limit).map((r) => (
+            <CompactRow key={r.id} recipe={r} onPreview={setPreview} />
+          ))}
+        </ul>
+      )}
       {filtered.length > limit && (
         <div className="mt-8 text-center">
           <button
@@ -121,6 +163,86 @@ export function Discover({ recipes }: { recipes: Recipe[] }) {
         </div>
       )}
     </main>
+  );
+}
+
+function DensityButton({
+  active,
+  onClick,
+  label,
+  kind,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  kind: "cards" | "list";
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      title={`${label} view`}
+      className={`inline-flex h-9 w-9 items-center justify-center rounded-full border transition-colors ${
+        active
+          ? "border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-cream)]"
+          : "border-[var(--color-line)] bg-[var(--color-card)] text-[var(--color-muted)] hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]"
+      }`}
+    >
+      {kind === "cards" ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden>
+          <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+          <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+          <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+          <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+        </svg>
+      ) : (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden>
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      )}
+      <span className="sr-only">{label}</span>
+    </button>
+  );
+}
+
+/** 56px thumb, title, the deciding meta — the finding-things view. */
+function CompactRow({ recipe, onPreview }: { recipe: Recipe; onPreview: (r: Recipe) => void }) {
+  const total = totalMinutes(recipe);
+  const meta = [
+    total ? `${total} min` : null,
+    recipe.cuisine,
+    recipe.rating ? `★ ${String(recipe.rating).replace(/\.0$/, "")}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <li className="border-b border-[var(--color-line)]/50 last:border-0">
+      <button
+        onClick={() => onPreview(recipe)}
+        className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[var(--color-paper)]/50"
+      >
+        <span className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-[var(--color-paper-2)]">
+          {recipe.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={thumb(recipe.image_url, 112)!} alt="" loading="lazy" className="h-full w-full object-cover" />
+          ) : (
+            <span className="font-display flex h-full w-full items-center justify-center text-lg text-[var(--color-faint)]">
+              {recipe.title.slice(0, 1)}
+            </span>
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="font-display block truncate text-base leading-tight text-[var(--color-ink)]">{recipe.title}</span>
+          <span className="mt-0.5 block truncate text-xs text-[var(--color-muted)]">{meta || "—"}</span>
+        </span>
+        {recipe.want_to_try && (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="shrink-0 text-[var(--color-mustard)]">
+            <path d="M12 16.5v5" />
+            <path d="M9 3.5h6l-.8 5.6 3.2 3.4a1 1 0 0 1-.73 1.68H7.33a1 1 0 0 1-.73-1.68l3.2-3.4z" />
+          </svg>
+        )}
+      </button>
+    </li>
   );
 }
 

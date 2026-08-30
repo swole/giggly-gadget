@@ -35,9 +35,10 @@ export function RandomRoll({ recipes }: { recipes: Recipe[] }) {
         className="group flex w-full items-center justify-between rounded-xl border-2 border-[var(--color-terra)] bg-[var(--color-card)] px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[var(--color-terra)] hover:shadow-md"
       >
         <div className="flex items-center gap-4">
-          <span className="text-3xl leading-none transition-transform group-hover:rotate-12">
-            🎲
-          </span>
+          <Die
+            size={30}
+            className="shrink-0 text-[var(--color-terra)] transition-all group-hover:rotate-12 group-hover:text-[var(--color-cream)]"
+          />
           <div>
             <div className="font-display text-lg leading-tight text-[var(--color-ink)] group-hover:text-[var(--color-cream)]">
               Surprise me
