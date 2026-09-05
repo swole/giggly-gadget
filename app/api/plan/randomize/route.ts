@@ -34,6 +34,7 @@ function parseFilters(f: RollFilters | undefined): RollFilters {
   if (f.quick === true) out.quick = true;
   if (f.wantToTry === true) out.wantToTry = true;
   if (f.favourites === true) out.favourites = true;
+  if (f.fiveStar === true) out.fiveStar = true;
   return out;
 }
 

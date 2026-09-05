@@ -66,6 +66,17 @@ describe("filterPool", () => {
     const unrated = recipe({ rating: null });
     expect(filterPool([five, three, unrated], { favourites: true })).toEqual([five]);
   });
+
+  it("5★ only means a rating of exactly 5; four-and-a-half stays out", () => {
+    const five = recipe({ rating: 5 });
+    const fourHalf = recipe({ rating: 4.5 });
+    const four = recipe({ rating: 4 });
+    const unrated = recipe({ rating: null });
+    expect(filterPool([five, fourHalf, four, unrated], { fiveStar: true })).toEqual([five]);
+    // Stacks with the other chips.
+    const thaiFive = recipe({ rating: 5, cuisine: "Thai" });
+    expect(filterPool([five, thaiFive], { fiveStar: true, cuisines: ["Thai"] })).toEqual([thaiFive]);
+  });
 });
 
 describe("poolBySlot", () => {

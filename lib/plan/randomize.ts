@@ -1,5 +1,5 @@
 // Themed randomizer: pick recipes for empty plan cells under a theme (who added it,
-// healthy, cuisine, quick, want-to-try, favourites) while respecting the dietitian
+// healthy, cuisine, quick, want-to-try, favourites, five-star) while respecting the dietitian
 // guard rails (oily fish ≥ 3 · chicken ≤ 1 · prawn/seafood ≤ 2) and avoiding repeats.
 //
 // Pure and side-effect free: the API route feeds it recipes + current meals and inserts
@@ -25,6 +25,8 @@ export type RollFilters = {
   wantToTry?: boolean;
   /** rating ≥ 4. */
   favourites?: boolean;
+  /** rating = 5 exactly; half-stars (4.5) do not count. */
+  fiveStar?: boolean;
 };
 
 export type RollCell = { planned_for: string; slot: Slot };
@@ -60,6 +62,7 @@ export function matchesFilters(r: PlannerRecipe, f: RollFilters): boolean {
   }
   if (f.wantToTry && !r.want_to_try) return false;
   if (f.favourites && !((r.rating ?? 0) >= 4)) return false;
+  if (f.fiveStar && !((r.rating ?? 0) >= 5)) return false;
   return true;
 }
 

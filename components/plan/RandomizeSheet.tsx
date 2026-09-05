@@ -1,7 +1,7 @@
 "use client";
 
 // The randomizer. Opens scoped to the week (header die) or one day (day-card die),
-// takes a theme — who added it, healthy, cuisine, quick, want-to-try, favourites —
+// takes a theme — who added it, healthy, cuisine, quick, want-to-try, favourites, 5★ only —
 // shows honestly what the theme can fill, then rolls. "Roll again" re-rolls only
 // what the last roll placed, so a bad draw is one tap from a fresh one and
 // hand-picked meals are never touched. Cooked meals are never touched, period.
@@ -159,7 +159,7 @@ export function RandomizeSheet({
     }
   }
 
-  const themeCount = [filters.source, filters.healthy, filters.quick, filters.wantToTry, filters.favourites]
+  const themeCount = [filters.source, filters.healthy, filters.quick, filters.wantToTry, filters.favourites, filters.fiveStar]
     .filter(Boolean).length + (filters.cuisines?.length ? 1 : 0);
   const scopeLabel =
     scope.kind === "slot"
@@ -221,6 +221,7 @@ export function RandomizeSheet({
             {chip(!!filters.quick, "≤ 30 min", () => upd({ quick: !filters.quick }))}
             {chip(!!filters.wantToTry, "Want to try", () => upd({ wantToTry: !filters.wantToTry }))}
             {chip(!!filters.favourites, "★ Favourites", () => upd({ favourites: !filters.favourites }))}
+            {chip(!!filters.fiveStar, "5★ only", () => upd({ fiveStar: !filters.fiveStar }))}
           </div>
           <div className="mt-3 text-[11px] uppercase tracking-[0.12em] text-[var(--color-muted)]">Cuisine</div>
           {/* Edge fade tells the thumb there are more chips off-screen. */}
