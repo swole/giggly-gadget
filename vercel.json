@@ -1,5 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["sin1"],
-  "crons": [{ "path": "/api/cron/notion-sync", "schedule": "0 16 * * *" }]
+  "regions": [
+    "sin1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/notion-sync",
+      "schedule": "0 16 * * *"
+    }
+  ],
+  "buildCommand": "npm run lint && npm run test && next build"
 }

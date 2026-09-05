@@ -92,12 +92,17 @@ The three-week heart-healthy rotation keyed by Notion page id (title fallback). 
 
 ```bash
 npm run dev                # http://localhost:3000 (dev server for the Browser pane: .claude/launch.json "giggly-gadget" → :3010)
+npm run check              # tsc --noEmit + eslint + jest - run before every commit
+npm run test               # jest alone (local binary; a stray global jest cannot find @swc/jest)
 npm run build              # production build
-./node_modules/.bin/tsc --noEmit
-./node_modules/.bin/jest   # use the local binary - a stray global jest cannot find @swc/jest
-vercel --prod --yes        # deploy
+vercel --prod --yes        # deploy - Vercel's build command is `npm run lint && npm run test && next build` (vercel.json), so red lint or tests FAIL the deploy; next build type-checks, which is why tsc is local-only
 ```
+`evals/recipe-ingest-golden.test.ts` is skipped unless `GOLDEN_ACTUAL` is set (the recipe-ingest skill's golden run; see the skill's `evals/README.md`).
 `WebFetch`/curl `https://giggly-gadget.vercel.app/api/sync-now?force=0&cb=<n>` - WebFetch caches a URL for 15 min, cache-bust when re-running.
+
+## Verification (after any UI change) - see FEATURES.md
+
+Green `npm run check` proves the code; it does not prove the page. Before reporting a UI change done: start the dev server in the Browser pane, set the role through `/api/role`, size to 390 px, and walk the affected route per [FEATURES.md](FEATURES.md) (what must show, which labels to find, what writes to prod). Use the sandbox week for anything that plans, rolls or clears; never mark real meals cooked or rate/pin as a test. Report what you looked for and whether it was there, with one screenshot as proof - not a request for Johnny to check on his phone. When a page, tab, chip or role rule changes, update its FEATURES.md row in the same commit.
 
 ## Working across machines
 

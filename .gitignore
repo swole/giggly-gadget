@@ -47,3 +47,4 @@ dev.log
 *.log
 
 .env*
+tsconfig.tsbuildinfo

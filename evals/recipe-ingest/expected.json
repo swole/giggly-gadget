@@ -1,0 +1,27 @@
+{
+  "_readme": "Expected result of running the recipe-ingest skill on fixture.md in eval mode (no Notion write). Rules, not taste: required tags come from the tagging checklist; ingredient names must be purchasable things in the strict grammar.",
+  "properties": {
+    "meal_type": "Dinner",
+    "cuisine": "Japanese",
+    "difficulty": "Easy",
+    "prep_min": 10,
+    "cook_min": 12,
+    "servings": 2,
+    "source": "Johnny"
+  },
+  "required_tags": ["Heart Healthy", "Quick"],
+  "forbidden_tags": ["Vegetarian", "Vegan", "Side Dish", "Lydia", "Spicy"],
+  "ingredient_count": 9,
+  "ingredients": [
+    { "name_includes": "salmon", "scalable": true },
+    { "name": "firm tofu", "unit": "g", "qty_min": 300 },
+    { "name": "white miso", "unit": "tbsp", "qty_min": 2 },
+    { "name": "mirin", "unit": "tbsp", "qty_min": 1 },
+    { "name": "ginger", "unit": "tsp", "qty_min": 1, "qty_max": 2 },
+    { "name": "garlic", "unit": "clove", "qty_min": 2 },
+    { "name": "bok choy", "unit": "g", "qty_min": 300 },
+    { "name": "sesame oil", "unit": "tsp", "qty_min": 1 },
+    { "name": "salt", "to_taste": true }
+  ],
+  "forbidden_names": ["block firm tofu", "block tofu", "grated ginger", "cloves garlic", "salmon fillets (skin on"]
+}
