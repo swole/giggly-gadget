@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { currentWeekMonday, isValidYmd, weekMondayOf } from "@/lib/week";
+import { addDays, currentWeekMonday, isValidYmd, weekMondayOf } from "@/lib/week";
 import { parseSlot, type NewPlannedMeal } from "@/lib/plan/types";
 import { parseEaters } from "@/lib/portions";
-import { getPlannedMealsForWeek } from "@/lib/plan/queries";
+import { getLunchLocationsBetween, getPlannedMealsForWeek } from "@/lib/plan/queries";
 import { roleFromRequest } from "@/lib/role.server";
 import { labelFor } from "@/lib/role";
 import { scheduleGroceryRebuild } from "@/lib/grocery/auto-build";
 
 export const runtime = "nodejs";
 
-/** GET /api/plan/meals?week=YYYY-MM-DD  → { week_of, meals } */
+/** GET /api/plan/meals?week=YYYY-MM-DD  → { week_of, meals, lunch } (lunch = lunch_locations rows for the week) */
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("week");
   const weekOf = isValidYmd(q) ? weekMondayOf(q) : currentWeekMonday();
-  const meals = await getPlannedMealsForWeek(weekOf);
-  return NextResponse.json({ week_of: weekOf, meals });
+  const [meals, lunch] = await Promise.all([getPlannedMealsForWeek(weekOf), getLunchLocationsBetween(weekOf, addDays(weekOf, 6))]);
+  return NextResponse.json({ week_of: weekOf, meals, lunch });
 }
 
 /** POST /api/plan/meals  { planned_for, slot, recipe_id | custom_text, eaters?, note?, leftover_of? } → { meal }

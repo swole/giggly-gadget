@@ -2,22 +2,24 @@
 // Meal Type — pairing derives from those, so new recipes pair automatically the
 // moment they're synced. No per-recipe pairing lists to maintain.
 //
-// A "pairable" is a Side by meal type, or any soup (many soups here are stored
+// A "pairable" is a Side by meal type, any dish tagged "Side Dish" (a main that can
+// also sit beside another main: greens, tofu, eggs, dal), or any soup (many soups here are stored
 // as Dinner/Lunch mains — a Chinese dinner is a main + greens + soup, so they
 // pair as well as they headline). Matching walks outward: same cuisine, then
 // same family (Chinese/Korean/Japanese eat together happily), then adjacent
 // families, then universal sides (cuisine "Other" or an explicit Universal tag).
 
 import type { PlannerRecipe } from "./types";
+import { SIDE_DISH_TAG } from "@/lib/tag-lint";
 
 export type PairRole = "side" | "soup";
 
-const SOUP_RE = /\b(soup|broth|jjigae|stew pot|tang\b|guk\b)\b/i;
+const SOUP_RE = /\b(soup|broth|minestrone|chowder|jjigae|stew pot|tang\b|guk\b)\b/i;
 
 /** What a recipe can be alongside a main — or null if it's a main-only dish. */
-export function pairRole(r: Pick<PlannerRecipe, "meal_type" | "title">): PairRole | null {
+export function pairRole(r: Pick<PlannerRecipe, "meal_type" | "title" | "tags">): PairRole | null {
   if (SOUP_RE.test(r.title)) return "soup";
-  if (r.meal_type === "Side") return "side";
+  if (r.meal_type === "Side" || (r.tags ?? []).includes(SIDE_DISH_TAG)) return "side";
   return null;
 }
 

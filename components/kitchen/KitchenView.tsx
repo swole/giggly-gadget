@@ -7,8 +7,9 @@ import { thumb } from "@/lib/images";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import type { PlannedMeal, PlannerRecipe, Slot } from "@/lib/plan/types";
+import type { LunchLocationRow, PlannedMeal, PlannerRecipe, Slot } from "@/lib/plan/types";
 import { mealTitle, SLOTS, SLOT_LABEL } from "@/lib/plan/types";
+import { lunchAway, packNote, packShort } from "@/lib/plan/lunch";
 import { usePlannedMeals } from "@/lib/plan/usePlannedMeals";
 import { EATERS_SHORT, portionNote } from "@/lib/portions";
 import { addDays, formatDayLabel, formatDayLong, isoDow, todayInTz, weekMondayOf } from "@/lib/week";
@@ -28,15 +29,17 @@ type Props = {
   /** Prep-ahead sentences per recipe (marinate, soak, thaw…) shown on tomorrow's cards. */
   hintsByRecipe?: Record<string, string[]>;
   shopAhead?: ShopAhead;
+  /** lunch_locations rows for the window: who is packing lunch for the office. */
+  initialLunch?: LunchLocationRow[];
 };
 
-export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {}, shopAhead = null }: Props) {
+export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {}, shopAhead = null, initialLunch = [] }: Props) {
   const role = useRole();
   const router = useRouter();
   const planner = isPlanner(role);
   const to = addDays(today, 6);
   const window = useMemo(() => ({ from: today, to }), [today, to]);
-  const { meals, status } = usePlannedMeals(null, initialMeals, window);
+  const { meals, lunch, status } = usePlannedMeals(null, initialMeals, window, initialLunch);
 
   // A phone left open overnight must not keep calling yesterday "Today".
   useEffect(() => {
@@ -120,6 +123,9 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {}, 
             return (
               <section key={slot}>
                 <SlotHeading slot={slot} />
+                {slot === "lunch" && packNote(lunchAway(lunch, today)) && (
+                  <p className="mt-1 text-xs font-medium text-[var(--color-terra-dark)]">{packNote(lunchAway(lunch, today))}</p>
+                )}
                 <div className="mt-2 space-y-3">
                   {ms.map((m) => (
                     <MealCard key={m.id} meal={m} recipe={m.recipe_id ? recipes[m.recipe_id] : undefined} big />
@@ -149,6 +155,12 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {}, 
           <h2 className="font-display text-2xl text-[var(--color-ink)]">Tomorrow</h2>
           <span className="text-[12px] uppercase tracking-[0.06em] text-[var(--color-muted)]">{formatDayLong(tomorrow)}</span>
         </div>
+        {tomorrowMeals.some((m) => m.slot === "lunch") && packNote(lunchAway(lunch, tomorrow)) && (
+          <p className="mt-3 rounded-lg bg-[var(--color-mustard)]/12 px-2.5 py-1.5 text-xs text-[var(--color-ink)]">
+            <span className="mr-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-terra-dark)]">Lunch</span>
+            {packNote(lunchAway(lunch, tomorrow))}
+          </p>
+        )}
         {isoDow(tomorrow) === 6 && tomorrowMeals.length === 0 ? (
           <p className="mt-3 text-sm text-[var(--color-faint)]">Sunday — rest day.</p>
         ) : tomorrowMeals.length === 0 ? (
@@ -206,6 +218,9 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {}, 
                           <span className="shrink-0 text-[10px] text-[var(--color-faint)]">{EATERS_SHORT[m.eaters]}</span>
                         </li>
                       ))}
+                      {ms.some((m) => m.slot === "lunch") && packShort(lunchAway(lunch, d)) && (
+                        <li className="text-[11px] text-[var(--color-terra-dark)]">{packShort(lunchAway(lunch, d))}</li>
+                      )}
                     </ul>
                   )}
                 </div>

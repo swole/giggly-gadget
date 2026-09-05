@@ -7,8 +7,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import type { NewPlannedMeal, PlannedMeal, PlannedMealPatch } from "./types";
-import { weekMondayOf } from "@/lib/week";
+import type { LunchLocation, LunchLocationRow, LunchPerson, NewPlannedMeal, PlannedMeal, PlannedMealPatch } from "./types";
+import { addDays, weekMondayOf } from "@/lib/week";
 
 type Status = "idle" | "live" | "reconnecting";
 
@@ -17,8 +17,11 @@ export function usePlannedMeals(
   initial: PlannedMeal[],
   /** For the kitchen: only keep rows inside [from, to] (inclusive). Planner leaves it undefined. */
   window?: { from: string; to: string },
+  /** lunch_locations rows for the same week / window (home vs office per day + person). */
+  initialLunch: LunchLocationRow[] = [],
 ) {
   const [meals, setMeals] = useState<PlannedMeal[]>(() => sortMeals(initial));
+  const [lunch, setLunchRows] = useState<LunchLocationRow[]>(initialLunch);
   const [status, setStatus] = useState<Status>("idle");
   const subscribedOnce = useRef(false);
   const patchSeq = useRef<Record<number, number>>({});
@@ -46,22 +49,45 @@ export function usePlannedMeals(
     setMeals((prev) => prev.filter((x) => x.id !== id));
   }, []);
 
+  // ---- lunch locations: the same live-state shape, keyed by day + person ----
+  const lunchInWindow = useCallback(
+    (r: LunchLocationRow) => {
+      if (weekOf) return r.planned_for >= weekOf && r.planned_for <= addDays(weekOf, 6);
+      if (window) return r.planned_for >= window.from && r.planned_for <= window.to;
+      return true;
+    },
+    [weekOf, window],
+  );
+  const upsertLunchLocal = useCallback((r: LunchLocationRow) => {
+    setLunchRows((prev) => [...prev.filter((x) => !(x.planned_for === r.planned_for && x.person === r.person)), r]);
+  }, []);
+  const removeLunchLocal = useCallback((planned_for: string, person: LunchPerson) => {
+    setLunchRows((prev) => prev.filter((x) => !(x.planned_for === planned_for && x.person === person)));
+  }, []);
+
   const refetch = useCallback(async () => {
     if (weekOf) {
       const res = await fetch(`/api/plan/meals?week=${weekOf}`, { cache: "no-store" });
       if (res.ok) {
-        const j = (await res.json()) as { meals: PlannedMeal[] };
+        const j = (await res.json()) as { meals: PlannedMeal[]; lunch?: LunchLocationRow[] };
         setMeals(sortMeals(j.meals));
+        setLunchRows(j.lunch ?? []);
       }
     } else if (window) {
       // kitchen window may straddle two weeks — fetch both and filter
       const weeks = new Set([weekMondayOf(window.from), weekMondayOf(window.to)]);
       const all: PlannedMeal[] = [];
+      const allLunch: LunchLocationRow[] = [];
       for (const w of weeks) {
         const res = await fetch(`/api/plan/meals?week=${w}`, { cache: "no-store" });
-        if (res.ok) all.push(...((await res.json()) as { meals: PlannedMeal[] }).meals);
+        if (res.ok) {
+          const j = (await res.json()) as { meals: PlannedMeal[]; lunch?: LunchLocationRow[] };
+          all.push(...j.meals);
+          allLunch.push(...(j.lunch ?? []));
+        }
       }
       setMeals(sortMeals(all.filter((m) => m.planned_for >= window.from && m.planned_for <= window.to)));
+      setLunchRows(allLunch.filter((r) => r.planned_for >= window.from && r.planned_for <= window.to));
     }
   }, [weekOf, window]);
 
@@ -98,6 +124,27 @@ export function usePlannedMeals(
       supa.removeChannel(ch);
     };
   }, [weekOf, inWindow, upsertLocal, removeLocal, refetch]);
+
+  // Second channel for lunch_locations (tiny table, no server-side filter: the window check runs here).
+  // Its status is not surfaced on purpose: until migration 0007 runs the table may not exist.
+  useEffect(() => {
+    const supa = supabaseBrowser();
+    const ch = supa
+      .channel(weekOf ? `lunch:${weekOf}` : "lunch:window")
+      .on("postgres_changes", { event: "*", schema: "public", table: "lunch_locations" }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          const old = payload.old as Partial<LunchLocationRow>;
+          if (old.planned_for && old.person) removeLunchLocal(old.planned_for, old.person);
+          return;
+        }
+        const r = payload.new as LunchLocationRow;
+        if (lunchInWindow(r)) upsertLunchLocal(r);
+      })
+      .subscribe();
+    return () => {
+      supa.removeChannel(ch);
+    };
+  }, [weekOf, lunchInWindow, upsertLunchLocal, removeLunchLocal]);
 
   // ---- mutations (optimistic) ----
 
@@ -187,7 +234,34 @@ export function usePlannedMeals(
     [meals, upsertLocal],
   );
 
-  return { meals, status, add, remove, patch, refetch };
+  /** Home or office for one person on one day. Optimistic; reverts on failure. */
+  const setLunch = useCallback(
+    async (planned_for: string, person: LunchPerson, location: LunchLocation): Promise<boolean> => {
+      const before = lunch.find((x) => x.planned_for === planned_for && x.person === person);
+      const revert = () => (before ? upsertLunchLocal(before) : removeLunchLocal(planned_for, person));
+      upsertLunchLocal({ planned_for, person, location, updated_by: null, updated_at: new Date().toISOString() });
+      try {
+        const res = await fetch("/api/plan/lunch", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ planned_for, person, location }),
+        });
+        if (!res.ok) {
+          revert();
+          return false;
+        }
+        const j = (await res.json()) as { row: LunchLocationRow };
+        upsertLunchLocal(j.row);
+        return true;
+      } catch {
+        revert();
+        return false;
+      }
+    },
+    [lunch, upsertLunchLocal, removeLunchLocal],
+  );
+
+  return { meals, lunch, status, add, remove, patch, setLunch, refetch };
 }
 
 function sortMeals(ms: PlannedMeal[]): PlannedMeal[] {

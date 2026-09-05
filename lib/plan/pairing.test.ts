@@ -29,6 +29,10 @@ describe("pairRole", () => {
     expect(pairRole(recipe({ meal_type: "Lunch", title: "Kimchi Jjigae" }))).toBe("soup");
     expect(pairRole(recipe({ meal_type: "Dinner", title: "Mapo Tofu" }))).toBeNull();
   });
+  it("a main tagged Side Dish pairs as a side; minestrone counts as a soup", () => {
+    expect(pairRole(recipe({ meal_type: "Dinner", title: "Mapo Tofu", tags: ["Side Dish"] }))).toBe("side");
+    expect(pairRole(recipe({ meal_type: "Lunch", title: "Kidney Bean and Barley Minestrone" }))).toBe("soup");
+  });
 });
 
 describe("pairScore", () => {

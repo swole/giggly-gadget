@@ -24,6 +24,29 @@ export function parseSlot(v: string | null | undefined): Slot | null {
   return (SLOTS as readonly string[]).includes(v) ? (v as Slot) : null;
 }
 
+// ---- Lunch locations (migration 0007): at home or packed for the office, per day + person ----
+export const LUNCH_PEOPLE = ["johnny", "lydia"] as const;
+export type LunchPerson = (typeof LUNCH_PEOPLE)[number];
+export const LUNCH_LOCATIONS = ["home", "office"] as const;
+export type LunchLocation = (typeof LUNCH_LOCATIONS)[number];
+
+/** One row of lunch_locations. No row for a day + person means "home". */
+export type LunchLocationRow = {
+  planned_for: string; // YYYY-MM-DD
+  person: LunchPerson;
+  location: LunchLocation;
+  updated_by: string | null;
+  updated_at: string;
+};
+
+export function parseLunchPerson(v: unknown): LunchPerson | null {
+  return typeof v === "string" && (LUNCH_PEOPLE as readonly string[]).includes(v) ? (v as LunchPerson) : null;
+}
+
+export function parseLunchLocation(v: unknown): LunchLocation | null {
+  return typeof v === "string" && (LUNCH_LOCATIONS as readonly string[]).includes(v) ? (v as LunchLocation) : null;
+}
+
 /** One row of planned_meals, as stored. week_of is generated in Postgres.
  *  Carries EITHER a recipe_id OR custom_text (a one-off like "White rice"). */
 export type PlannedMeal = {

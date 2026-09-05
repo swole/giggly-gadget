@@ -1,5 +1,5 @@
 import { WeekPlanner } from "@/components/plan/WeekPlanner";
-import { getPlannedMealsForWeek, listPlannerRecipes } from "@/lib/plan/queries";
+import { getLunchLocationsBetween, getPlannedMealsForWeek, listPlannerRecipes } from "@/lib/plan/queries";
 import { analyseRecipes } from "@/lib/plan/analysis";
 import { addDays, currentWeekMonday, isoDow, isValidYmd, todayInTz, weekMondayOf } from "@/lib/week";
 
@@ -17,10 +17,11 @@ export default async function PlanPage({
   const today = todayInTz();
   const autoForward = !isValidYmd(week) && isoDow(today) >= 4;
   const weekOf = isValidYmd(week) ? weekMondayOf(week) : autoForward ? addDays(currentWeekMonday(), 7) : currentWeekMonday();
-  const [meals, recipes, analysis] = await Promise.all([
+  const [meals, recipes, analysis, lunch] = await Promise.all([
     getPlannedMealsForWeek(weekOf),
     listPlannerRecipes(),
     analyseRecipes(null), // all recipes: the picker can add any of them, chips must know them all
+    getLunchLocationsBetween(weekOf, addDays(weekOf, 6)),
   ]);
   return (
     <WeekPlanner
@@ -28,6 +29,7 @@ export default async function PlanPage({
       weekOf={weekOf}
       today={today}
       initialMeals={meals}
+      initialLunch={lunch}
       recipes={recipes}
       classByRecipe={analysis.classByRecipe}
       proteinByRecipe={analysis.proteinByRecipe}

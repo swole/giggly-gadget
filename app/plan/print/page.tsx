@@ -1,8 +1,9 @@
-import { getPlannedMealsForWeek, listPlannerRecipes } from "@/lib/plan/queries";
+import { getLunchLocationsBetween, getPlannedMealsForWeek, listPlannerRecipes } from "@/lib/plan/queries";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { mealTitle, SLOT_LABEL, type Slot } from "@/lib/plan/types";
 import { EATERS_SHORT } from "@/lib/portions";
-import { currentWeekMonday, formatDayLong, formatWeekRange, isoDow, isValidYmd, weekDates, weekMondayOf } from "@/lib/week";
+import { addDays, currentWeekMonday, formatDayLong, formatWeekRange, isoDow, isValidYmd, weekDates, weekMondayOf } from "@/lib/week";
+import { lunchAway, packShort } from "@/lib/plan/lunch";
 import { CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/grocery/labels";
 import { SHOP_LABEL, SHOP_ORDER, type Shop } from "@/lib/grocery/shop";
 import { displayGroceryRow } from "@/lib/grocery/display";
@@ -16,10 +17,11 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
   const { week } = await searchParams;
   const weekOf = isValidYmd(week) ? weekMondayOf(week) : currentWeekMonday();
   const supa = supabaseAdmin();
-  const [meals, recipes, { data: grocery }] = await Promise.all([
+  const [meals, recipes, { data: grocery }, lunch] = await Promise.all([
     getPlannedMealsForWeek(weekOf),
     listPlannerRecipes(),
     supa.from("grocery_list").select("*").eq("week_of", weekOf).eq("staple", false).order("name"),
+    getLunchLocationsBetween(weekOf, addDays(weekOf, 6)),
   ]);
   const byId = new Map(recipes.map((r) => [r.id, r]));
   const days = weekDates(weekOf);
@@ -82,6 +84,9 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
                             {m.note && <div className="text-[10px] italic text-[var(--color-muted)]">{m.note}</div>}
                           </div>
                         ))}
+                        {s === "lunch" && packShort(lunchAway(lunch, d)) && (
+                          <div className="text-[10px] uppercase tracking-[0.08em] text-[var(--color-terra)]">{packShort(lunchAway(lunch, d))}</div>
+                        )}
                       </td>
                     ))}
                   </tr>

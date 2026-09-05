@@ -75,6 +75,20 @@ export async function POST(req: NextRequest) {
     occupied.add(cell);
     copied++;
   }
+  // Office days repeat week to week: carry the lunch locations across too. Best effort (the table arrives with 0007).
+  const { data: lunchSrc } = await supa
+    .from("lunch_locations")
+    .select("planned_for, person, location")
+    .gte("planned_for", from)
+    .lte("planned_for", addDays(from, 6));
+  for (const r of lunchSrc ?? []) {
+    await supa
+      .from("lunch_locations")
+      .upsert(
+        { planned_for: addDays(r.planned_for as string, shiftDays), person: r.person, location: r.location, updated_by: addedBy },
+        { onConflict: "planned_for,person", ignoreDuplicates: mode === "fill_empty" },
+      );
+  }
   if (copied > 0 || removed > 0) scheduleGroceryRebuild(to);
   return NextResponse.json({ from_week: from, to_week: to, mode, copied, skipped, removed });
 }

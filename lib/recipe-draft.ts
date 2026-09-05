@@ -11,7 +11,7 @@ export const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner", "Snack", "Dessert", "
 export const DIFFICULTIES = ["Easy", "Medium", "Hard"] as const;
 export const TAGS = [
   "Quick", "Comfort Food", "Healthy", "Vegetarian", "Vegan", "Date Night", "Meal Prep Friendly",
-  "Guest Worthy", "Kid Friendly", "Spicy", "Heart Healthy",
+  "Guest Worthy", "Kid Friendly", "Spicy", "Heart Healthy", "Side Dish",
 ] as const;
 
 export const RecipeDraftSchema = z.object({
@@ -23,7 +23,7 @@ export const RecipeDraftSchema = z.object({
   prep_min: z.number().int().min(0).max(600).nullable().describe("Hands-on prep minutes, null if unknown"),
   cook_min: z.number().int().min(0).max(1440).nullable().describe("Cooking minutes, null if unknown"),
   servings: z.number().int().min(1).max(24).nullable().describe("Servings the quantities make, null if unknown"),
-  tags: z.array(z.enum(TAGS)).max(4),
+  tags: z.array(z.enum(TAGS)).max(5),
   intro: z.string().max(400).nullable().describe("One or two sentences on what the dish is, or null"),
   ingredients: z
     .array(z.string().min(1).max(200))

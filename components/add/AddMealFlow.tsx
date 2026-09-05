@@ -453,7 +453,7 @@ function DraftForm({
                 key={t}
                 type="button"
                 aria-pressed={on}
-                onClick={() => set("tags", on ? draft.tags.filter((x) => x !== t) : [...draft.tags, t].slice(0, 4))}
+                onClick={() => set("tags", on ? draft.tags.filter((x) => x !== t) : [...draft.tags, t].slice(0, 5))}
                 className={`rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.08em] transition-colors ${
                   on ? "border-[var(--color-terra)] bg-[var(--color-terra)] text-[var(--color-cream)]" : "border-[var(--color-line)] text-[var(--color-muted)]"
                 }`}

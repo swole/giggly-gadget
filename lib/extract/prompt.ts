@@ -20,7 +20,7 @@ INGREDIENT LINE GRAMMAR (non-negotiable — a parser reads these):
 
 STEPS: imperative, one action group per step, keep the source's order and timings. Drop serving suggestions that are not steps.
 
-FIELDS: cuisine ∈ [${CUISINES.join(", ")}]; meal_type ∈ [${MEAL_TYPES.join(", ")}]; difficulty ∈ [${DIFFICULTIES.join(", ")}]; tags (0-4) from [${TAGS.join(", ")}] — "Heart Healthy" only when the dish is plant-or-fish forward, low in saturated fat and not deep-fried; "Quick" when total time ≤ 30 min; "Vegan"/"Vegetarian" only when strictly true. prep_min / cook_min as integers or null. servings as the source states or null. title in Title Case without the site name. emoji: one fitting emoji.`;
+FIELDS: cuisine ∈ [${CUISINES.join(", ")}]; meal_type ∈ [${MEAL_TYPES.join(", ")}]; difficulty ∈ [${DIFFICULTIES.join(", ")}]; tags (0-5) from [${TAGS.join(", ")}] — "Heart Healthy" only when the dish is plant-or-fish forward, low in saturated fat and not deep-fried; "Quick" when total time ≤ 30 min; "Vegan"/"Vegetarian" only when strictly true. meal_type is the ONE primary occasion: "Side" only for an accompaniment that is not a meal on its own (greens, salads, dips, breads, banchan); a dish that can headline a meal keeps Breakfast/Lunch/Dinner even if it also works beside another main. "Side Dish" tag on EVERY Side, and also on any main that can sit beside another main (vegetable-, tofu- or egg-led dishes, dal-type curries, salads, breads, dips); soups never need it. prep_min / cook_min as integers or null. servings as the source states or null. title in Title Case without the site name. emoji: one fitting emoji.`;
 
 export function buildUserText(input: {
   kind: "url" | "text";

@@ -6,13 +6,14 @@
 // the helper without seeing the picker.
 
 import { useState } from "react";
-import type { PlannedMeal, PlannerRecipe, Slot } from "@/lib/plan/types";
+import type { LunchLocationRow, PlannedMeal, PlannerRecipe, Slot } from "@/lib/plan/types";
 import { mealTitle } from "@/lib/plan/types";
+import { lunchAway, packShort } from "@/lib/plan/lunch";
 import { formatDayLabel, formatWeekRange, weekDates } from "@/lib/week";
 
 const SLOT_ORDER: Slot[] = ["breakfast", "lunch", "dinner", "snack"];
 
-export function shareText(weekOf: string, meals: PlannedMeal[], byId: Record<string, PlannerRecipe>): string {
+export function shareText(weekOf: string, meals: PlannedMeal[], byId: Record<string, PlannerRecipe>, lunch: LunchLocationRow[] = []): string {
   const lines: string[] = [`Meals for ${formatWeekRange(weekOf)}`];
   for (const d of weekDates(weekOf)) {
     const ms = meals
@@ -20,7 +21,9 @@ export function shareText(weekOf: string, meals: PlannedMeal[], byId: Record<str
       .sort((a, b) => SLOT_ORDER.indexOf(a.slot) - SLOT_ORDER.indexOf(b.slot) || a.position - b.position);
     if (ms.length === 0) continue;
     const dishes = ms.map((m) => `${m.leftover_of !== null ? "leftover " : ""}${mealTitle(m, byId)}`).join(" · ");
-    lines.push(`${formatDayLabel(d)}: ${dishes}`);
+    // Office days: tell Shallaine whose lunch goes in a box.
+    const pack = ms.some((m) => m.slot === "lunch") ? packShort(lunchAway(lunch, d)) : null;
+    lines.push(`${formatDayLabel(d)}: ${dishes}${pack ? ` · ${pack}` : ""}`);
   }
   return lines.join("\n");
 }
@@ -29,16 +32,18 @@ export function ShareWeekButton({
   weekOf,
   meals,
   byId,
+  lunch = [],
 }: {
   weekOf: string;
   meals: PlannedMeal[];
   byId: Record<string, PlannerRecipe>;
+  lunch?: LunchLocationRow[];
 }) {
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
 
   async function share() {
     const url = `${window.location.origin}/plan?week=${weekOf}&as=helper`;
-    const text = shareText(weekOf, meals, byId);
+    const text = shareText(weekOf, meals, byId, lunch);
     const payload = { title: "This week's meals", text: `${text}\n`, url };
     try {
       if (navigator.share) {

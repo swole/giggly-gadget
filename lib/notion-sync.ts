@@ -1,4 +1,5 @@
 import { notionClient, NOTION_RECIPES_DATA_SOURCE_ID } from "./notion";
+import { formatFindings, lintRecipe } from "@/lib/tag-lint";
 import { parseNotionRating } from "./rating";
 import { supabaseAdmin } from "./supabase/server";
 import { blocksToMarkdown } from "./notion-blocks";
@@ -97,12 +98,14 @@ export type SyncResult = {
   skipped: number;
   removed?: number;
   errors: { recipe: string; error: string }[];
+  /** Tagging findings for the pages upserted this run ("Title: finding · finding"), from lib/tag-lint.ts. */
+  lint: string[];
 };
 
 export async function syncRecipesFromNotion(options: { force?: boolean } = {}): Promise<SyncResult> {
   const notion = notionClient();
   const supa = supabaseAdmin();
-  const result: SyncResult = { total: 0, upserted: 0, skipped: 0, errors: [] };
+  const result: SyncResult = { total: 0, upserted: 0, skipped: 0, errors: [], lint: [] };
   const force = options.force === true;
   const seen = new Set<string>();
 
@@ -165,6 +168,20 @@ export async function syncRecipesFromNotion(options: { force?: boolean } = {}): 
 
         await upsertNotionPage(notion, supa, { id: pageId, last_edited_time: lastEdited, properties: props, cover: page.cover ?? null }, prior);
         result.upserted++;
+        // Tagging rules run on every page that lands, so a mis-tagged recipe shows up in the sync JSON straight away.
+        const lintLine = formatFindings(
+          title,
+          lintRecipe({
+            title,
+            meal_type: getSelect(props, "Meal Type"),
+            cuisine: getSelect(props, "Cuisine"),
+            tags: getMultiSelect(props, "Tags"),
+            prep_min: getNumber(props, "Prep Time"),
+            cook_min: getNumber(props, "Cook Time"),
+            source,
+          }),
+        );
+        if (lintLine) result.lint.push(lintLine);
       } catch (e) {
         const msg =
           e instanceof Error

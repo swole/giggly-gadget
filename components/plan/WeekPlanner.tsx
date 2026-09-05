@@ -8,8 +8,9 @@
 import { thumb } from "@/lib/images";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { NewPlannedMeal, PlannedMeal, PlannerRecipe, Slot } from "@/lib/plan/types";
-import { mealTitle, SLOT_LABEL } from "@/lib/plan/types";
+import type { LunchLocation, LunchLocationRow, LunchPerson, NewPlannedMeal, PlannedMeal, PlannerRecipe, Slot } from "@/lib/plan/types";
+import { LUNCH_PEOPLE, mealTitle, SLOT_LABEL } from "@/lib/plan/types";
+import { LUNCH_PERSON_LABEL, LUNCH_PERSON_SHORT, lunchLocationOf, toggleLunchLocation } from "@/lib/plan/lunch";
 import { usePlannedMeals } from "@/lib/plan/usePlannedMeals";
 import { EATERS_SHORT, nextEaters } from "@/lib/portions";
 import { addDays, formatDayLabel, formatWeekRange, isoDow, weekDates } from "@/lib/week";
@@ -49,6 +50,7 @@ export function WeekPlanner({
   weekOf,
   today,
   initialMeals,
+  initialLunch = [],
   recipes,
   classByRecipe,
   proteinByRecipe,
@@ -57,6 +59,7 @@ export function WeekPlanner({
   weekOf: string;
   today: string;
   initialMeals: PlannedMeal[];
+  initialLunch?: LunchLocationRow[];
   recipes: PlannerRecipe[];
   classByRecipe: Record<string, ProteinClass[]>;
   proteinByRecipe: Record<string, { j: number; l: number }>;
@@ -64,7 +67,7 @@ export function WeekPlanner({
 }) {
   const role = useRole();
   const canEdit = isPlanner(role);
-  const { meals, status, add, remove, patch, refetch } = usePlannedMeals(weekOf, initialMeals);
+  const { meals, lunch, status, add, remove, patch, setLunch, refetch } = usePlannedMeals(weekOf, initialMeals, undefined, initialLunch);
   const constraints = useMemo(() => weekConstraintStatus(meals, classByRecipe), [meals, classByRecipe]);
   const [picker, setPicker] = useState<{ day: string; slot: Slot } | null>(null);
   const [showSnacks, setShowSnacks] = useState(false);
@@ -266,7 +269,7 @@ export function WeekPlanner({
                   <Die size={13} /> Randomize
                 </button>
               )}
-              <ShareWeekButton weekOf={weekOf} meals={meals} byId={byId} />
+              <ShareWeekButton weekOf={weekOf} meals={meals} byId={byId} lunch={lunch} />
               <Link href={`/plan/print?week=${weekOf}`} className="btn-quiet px-3 py-1.5 text-[11px] uppercase tracking-[0.08em]">
                 Print
               </Link>
@@ -328,6 +331,8 @@ export function WeekPlanner({
             onRollDay={() => setRollSheet({ kind: "day", day: d })}
             onRollSlot={(slot) => setRollSheet({ kind: "slot", day: d, slot })}
             onPickAnother={(m) => void pickAnother(m)}
+            lunch={lunch}
+            onSetLunch={(p, l) => void setLunch(d, p, l)}
           />
         ))}
 
@@ -363,6 +368,8 @@ export function WeekPlanner({
                 onRollDay={() => setRollSheet({ kind: "day", day: days[6] })}
                 onRollSlot={(slot) => setRollSheet({ kind: "slot", day: days[6], slot })}
                 onPickAnother={(m) => void pickAnother(m)}
+                lunch={lunch}
+                onSetLunch={(p, l) => void setLunch(days[6], p, l)}
                 bare
               />
             </div>
@@ -491,6 +498,8 @@ function DayCard({
   onRollDay,
   onRollSlot,
   onPickAnother,
+  lunch,
+  onSetLunch,
   bare = false,
 }: {
   day: string;
@@ -509,6 +518,8 @@ function DayCard({
   onRollDay: () => void;
   onRollSlot: (slot: Slot) => void;
   onPickAnother: (m: PlannedMeal) => void;
+  lunch: LunchLocationRow[];
+  onSetLunch: (person: LunchPerson, location: LunchLocation) => void;
   bare?: boolean;
 }) {
   // Protein for the day from the heart-healthy recipes' notes (J / L grams). Partial when a recipe has none.
@@ -587,7 +598,7 @@ function DayCard({
                     onPickAnother={() => onPickAnother(m)}
                   />
                 ))}
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {canEdit && (
                     <button
                       onClick={() => onAdd(slot)}
@@ -609,6 +620,7 @@ function DayCard({
                     </button>
                   )}
                   {!canEdit && ms.length === 0 && <span className="text-xs text-[var(--color-faint)]">—</span>}
+                  {slot === "lunch" && (canEdit || ms.length > 0) && <LunchPills day={day} rows={lunch} canEdit={canEdit} onSet={onSetLunch} />}
                 </div>
               </div>
             </div>
@@ -616,6 +628,35 @@ function DayCard({
         })}
       </div>
     </section>
+  );
+}
+
+/** Lunch row only: one pill per planner, "J · home" or "J · office". Tap flips it; Shallaine sees it read-only. */
+function LunchPills({ day, rows, canEdit, onSet }: { day: string; rows: LunchLocationRow[]; canEdit: boolean; onSet: (person: LunchPerson, location: LunchLocation) => void }) {
+  return (
+    <span className="ml-auto flex shrink-0 items-center gap-1">
+      {LUNCH_PEOPLE.map((p) => {
+        const loc = lunchLocationOf(rows, day, p);
+        const office = loc === "office";
+        const where = office ? "packed for the office" : "at home";
+        return (
+          <button
+            key={p}
+            onClick={canEdit ? () => onSet(p, toggleLunchLocation(loc)) : undefined}
+            disabled={!canEdit}
+            className={`inline-flex min-h-7 items-center rounded-full border px-2 text-[10px] font-semibold uppercase tracking-[0.08em] transition-colors ${
+              office
+                ? "border-[var(--color-terra)]/70 bg-[var(--color-terra)]/10 text-[var(--color-terra-dark)]"
+                : "border-[var(--color-line)] bg-[var(--color-paper)]/50 text-[var(--color-muted)]"
+            } ${canEdit ? "hover:border-[var(--color-terra)]" : ""}`}
+            title={`${LUNCH_PERSON_LABEL[p]}'s lunch: ${where}${canEdit ? " (tap to change)" : ""}`}
+            aria-label={`${LUNCH_PERSON_LABEL[p]}'s lunch: ${where}.${canEdit ? " Tap to change." : ""}`}
+          >
+            {LUNCH_PERSON_SHORT[p]} · {office ? "office" : "home"}
+          </button>
+        );
+      })}
+    </span>
   );
 }
 

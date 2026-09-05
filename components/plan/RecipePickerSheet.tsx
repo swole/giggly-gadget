@@ -4,6 +4,8 @@
 // slot's Meal Type(s) so "Tuesday dinner" opens on dinners, but every chip clears.
 // Typing overrides the slot and pairs defaults (the explicit chips still apply), so
 // "salmon" finds Crisp-Skin Salmon even when the picker opened on pairings.
+// Main chips: slot default (or Pairs with), Heart healthy, Want to try, ★ 4+ (rated 4 or better), Recent.
+// The ≤ 30 min chip went on 2026-09-05; the time still shows on every row.
 
 import { thumb } from "@/lib/images";
 import { useEffect, useMemo, useState } from "react";
@@ -13,7 +15,7 @@ import { suggestPairings } from "@/lib/plan/pairing";
 import { matchesSearch, searchWords } from "@/lib/plan/search";
 import { formatDayLong } from "@/lib/week";
 
-type Filter = "slot" | "heart" | "try" | "quick" | "recent" | "pairs" | "lydia" | "faves";
+type Filter = "slot" | "heart" | "try" | "recent" | "pairs" | "lydia" | "faves";
 
 export type LeftoverCandidate = { id: number; recipe_id: string; planned_for: string; slot: Slot; title: string };
 
@@ -65,7 +67,7 @@ export function RecipePickerSheet({
   const [q, setQ] = useState("");
   const [mode, setMode] = useState<"recipes" | "leftovers">("recipes");
   const [filters, setFilters] = useState<Set<Filter>>(new Set([pairWith.length > 0 ? "pairs" : "slot"]));
-  // The deeper cuts (cuisine, Lydia's picks, ★4+) live behind one inline "Filters ▾"
+  // The deeper cuts (cuisine, Lydia's picks) live behind one inline "Filters ▾"
   // chip — expanding IN the sheet, never a second sheet on top of this one.
   const [moreOpen, setMoreOpen] = useState(false);
   const [cuisine, setCuisine] = useState<string | null>(null);
@@ -96,7 +98,7 @@ export function RecipePickerSheet({
     return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c).slice(0, 12);
   }, [recipes]);
 
-  const advancedCount = (filters.has("lydia") ? 1 : 0) + (filters.has("faves") ? 1 : 0) + (cuisine ? 1 : 0);
+  const advancedCount = (filters.has("lydia") ? 1 : 0) + (cuisine ? 1 : 0);
 
   const list = useMemo(() => {
     const words = searchWords(q);
@@ -110,10 +112,6 @@ export function RecipePickerSheet({
       if (filters.has("slot") && !searching && !(r.meal_type && mealTypes.includes(r.meal_type))) return false;
       if (filters.has("heart") && !(r.tags ?? []).includes("Heart Healthy")) return false;
       if (filters.has("try") && !r.want_to_try) return false;
-      if (filters.has("quick")) {
-        const t = (r.prep_min ?? 0) + (r.cook_min ?? 0);
-        if (t === 0 || t > 30) return false;
-      }
       // Same union as the randomizer: her tag OR anything she added herself.
       if (filters.has("lydia") && !(r.source === "Lydia" || (r.tags ?? []).includes("Lydia"))) return false;
       if (filters.has("faves") && !((r.rating ?? 0) >= 4)) return false;
@@ -222,7 +220,7 @@ export function RecipePickerSheet({
             {chip("slot", SLOT_LABEL[slot])}
             {chip("heart", "Heart healthy")}
             {chip("try", "Want to try")}
-            {chip("quick", "≤ 30 min")}
+            {chip("faves", "★ 4+")}
             {chip("recent", "Recent")}
             <button
               onClick={() => setMoreOpen((v) => !v)}
@@ -243,7 +241,6 @@ export function RecipePickerSheet({
                 style={{ WebkitMaskImage: "linear-gradient(to right, black 0, black calc(100% - 2rem), transparent 100%)", maskImage: "linear-gradient(to right, black 0, black calc(100% - 2rem), transparent 100%)" }}
               >
                 {chip("lydia", "Lydia’s picks")}
-                {chip("faves", "★ 4+")}
                 {cuisines.map((c) => (
                   <button
                     key={c}
