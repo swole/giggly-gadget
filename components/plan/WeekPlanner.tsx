@@ -51,6 +51,7 @@ export function WeekPlanner({
   today,
   initialMeals,
   initialLunch = [],
+  lunchReady = true,
   recipes,
   classByRecipe,
   proteinByRecipe,
@@ -60,6 +61,8 @@ export function WeekPlanner({
   today: string;
   initialMeals: PlannedMeal[];
   initialLunch?: LunchLocationRow[];
+  /** False until migration 0007 exists in this database: the lunch pills stay hidden rather than failing on tap. */
+  lunchReady?: boolean;
   recipes: PlannerRecipe[];
   classByRecipe: Record<string, ProteinClass[]>;
   proteinByRecipe: Record<string, { j: number; l: number }>;
@@ -332,6 +335,7 @@ export function WeekPlanner({
             onRollSlot={(slot) => setRollSheet({ kind: "slot", day: d, slot })}
             onPickAnother={(m) => void pickAnother(m)}
             lunch={lunch}
+            lunchReady={lunchReady}
             onSetLunch={(p, l) => void setLunch(d, p, l)}
           />
         ))}
@@ -369,6 +373,7 @@ export function WeekPlanner({
                 onRollSlot={(slot) => setRollSheet({ kind: "slot", day: days[6], slot })}
                 onPickAnother={(m) => void pickAnother(m)}
                 lunch={lunch}
+                lunchReady={lunchReady}
                 onSetLunch={(p, l) => void setLunch(days[6], p, l)}
                 bare
               />
@@ -499,6 +504,7 @@ function DayCard({
   onRollSlot,
   onPickAnother,
   lunch,
+  lunchReady,
   onSetLunch,
   bare = false,
 }: {
@@ -519,6 +525,7 @@ function DayCard({
   onRollSlot: (slot: Slot) => void;
   onPickAnother: (m: PlannedMeal) => void;
   lunch: LunchLocationRow[];
+  lunchReady: boolean;
   onSetLunch: (person: LunchPerson, location: LunchLocation) => void;
   bare?: boolean;
 }) {
@@ -620,7 +627,7 @@ function DayCard({
                     </button>
                   )}
                   {!canEdit && ms.length === 0 && <span className="text-xs text-[var(--color-faint)]">—</span>}
-                  {slot === "lunch" && (canEdit || ms.length > 0) && <LunchPills day={day} rows={lunch} canEdit={canEdit} onSet={onSetLunch} />}
+                  {slot === "lunch" && lunchReady && (canEdit || ms.length > 0) && <LunchPills day={day} rows={lunch} canEdit={canEdit} onSet={onSetLunch} />}
                 </div>
               </div>
             </div>

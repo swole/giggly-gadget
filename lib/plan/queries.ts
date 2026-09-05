@@ -50,3 +50,10 @@ export async function getLunchLocationsBetween(from: string, to: string): Promis
   }
   return (data ?? []) as LunchLocationRow[];
 }
+
+/** True once migration 0007 has run (the lunch_locations table exists). The planner hides the lunch pills until then. */
+export async function lunchLocationsReady(): Promise<boolean> {
+  const supa = supabaseAdmin();
+  const { error } = await supa.from("lunch_locations").select("planned_for", { head: true, count: "exact" }).limit(1);
+  return !error;
+}
