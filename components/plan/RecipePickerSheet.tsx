@@ -2,12 +2,15 @@
 
 // Bottom sheet for choosing a recipe for a slot. Search + chips; defaults to the
 // slot's Meal Type(s) so "Tuesday dinner" opens on dinners, but every chip clears.
+// Typing overrides the slot and pairs defaults (the explicit chips still apply), so
+// "salmon" finds Crisp-Skin Salmon even when the picker opened on pairings.
 
 import { thumb } from "@/lib/images";
 import { useEffect, useMemo, useState } from "react";
 import type { PlannerRecipe, Slot } from "@/lib/plan/types";
 import { SLOT_LABEL, SLOT_MEAL_TYPES } from "@/lib/plan/types";
 import { suggestPairings } from "@/lib/plan/pairing";
+import { matchesSearch, searchWords } from "@/lib/plan/search";
 import { formatDayLong } from "@/lib/week";
 
 type Filter = "slot" | "heart" | "try" | "quick" | "recent" | "pairs" | "lydia" | "faves";
@@ -96,13 +99,15 @@ export function RecipePickerSheet({
   const advancedCount = (filters.has("lydia") ? 1 : 0) + (filters.has("faves") ? 1 : 0) + (cuisine ? 1 : 0);
 
   const list = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const words = searchWords(q);
+    const searching = words.length > 0;
     const mealTypes = SLOT_MEAL_TYPES[slot];
     // "Pairs" replaces the slot default: sides/soups that go with what's already planned, best match first.
-    const base = filters.has("pairs") && pairWith.length > 0 ? suggestPairings(pairWith, recipes).map((s) => s.recipe) : recipes;
+    // Both defaults step aside while the cook is typing: the search runs over every recipe.
+    const base = !searching && filters.has("pairs") && pairWith.length > 0 ? suggestPairings(pairWith, recipes).map((s) => s.recipe) : recipes;
     let out = base.filter((r) => {
-      if (needle && !r.title.toLowerCase().includes(needle)) return false;
-      if (filters.has("slot") && !needle && !(r.meal_type && mealTypes.includes(r.meal_type))) return false;
+      if (searching && !matchesSearch(r, words)) return false;
+      if (filters.has("slot") && !searching && !(r.meal_type && mealTypes.includes(r.meal_type))) return false;
       if (filters.has("heart") && !(r.tags ?? []).includes("Heart Healthy")) return false;
       if (filters.has("try") && !r.want_to_try) return false;
       if (filters.has("quick")) {
