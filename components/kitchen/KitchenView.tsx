@@ -428,7 +428,7 @@ export function MealCard({
               <h3
                 className={`font-display leading-tight text-[var(--color-ink)] ${custom ? "" : "hover:text-[var(--color-terra)]"} ${
                   big ? "text-2xl" : "text-base"
-                } ${cooked ? "line-through decoration-[var(--color-sage)]/60" : ""}`}
+                }`}
               >
                 {leftover && <span className="mr-1 text-[var(--color-muted)]">Leftovers ·</span>}
                 {title}

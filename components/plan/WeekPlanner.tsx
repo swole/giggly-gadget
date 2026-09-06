@@ -698,11 +698,7 @@ function MealChip({
   return (
     <span className="relative block w-full">
       <span
-        className={`flex w-full items-center gap-2.5 rounded-xl border py-1.5 pl-1.5 pr-1 text-[13px] shadow-[0_1px_3px_-1px_rgba(85,55,25,0.3)] ${
-          cooked
-            ? "border-[var(--color-sage)]/60 bg-[var(--color-sage)]/10"
-            : "border-[var(--color-line)] bg-[var(--color-card)]"
-        } ${pending ? "opacity-60" : ""} ${flash ? "animate-rolled-in" : ""}`}
+        className={`flex w-full items-center gap-2.5 rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] py-1.5 pl-1.5 pr-1 text-[13px] shadow-[0_1px_3px_-1px_rgba(85,55,25,0.3)] ${pending ? "opacity-60" : ""} ${flash ? "animate-rolled-in" : ""}`}
       >
         <span className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg ${meal.recipe_id === null ? "border border-[var(--color-line)] bg-[var(--color-paper)]/40 text-[13px] text-[var(--color-muted)]" : "bg-[var(--color-paper-2)]"}`}>
           {meal.recipe_id === null ? (
@@ -716,7 +712,7 @@ function MealChip({
         </span>
         {meal.recipe_id === null ? (
           <span
-            className={`line-clamp-2 min-w-0 flex-1 leading-tight text-[var(--color-ink)] ${cooked ? "line-through" : ""}`}
+            className="line-clamp-2 min-w-0 flex-1 leading-tight text-[var(--color-ink)]"
             title={meal.custom_text ?? undefined}
           >
             {meal.custom_text}
@@ -725,7 +721,7 @@ function MealChip({
         ) : (
         <Link
           href={`/recipes/${meal.recipe_id}?eaters=${meal.eaters}&pm=${meal.id}`}
-          className={`line-clamp-2 min-w-0 flex-1 leading-tight text-[var(--color-ink)] hover:text-[var(--color-terra)] ${cooked ? "line-through" : ""}`}
+          className="line-clamp-2 min-w-0 flex-1 leading-tight text-[var(--color-ink)] hover:text-[var(--color-terra)]"
           title={recipe?.title}
         >
           {meal.leftover_of !== null && <span className="text-[var(--color-muted)]">Leftovers · </span>}
