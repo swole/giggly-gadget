@@ -1,31 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ROLE_LABEL, isPlanner } from "@/lib/role";
+import { usePathname, useRouter } from "next/navigation";
+import { ROLE_LABEL } from "@/lib/role";
+import { hotkeyDigit, type HotkeyAction } from "@/lib/nav/hotkeys";
 import { useRole } from "@/components/role/RoleProvider";
 import { RoleSheet } from "@/components/role/RolePicker";
-import { BasketIcon, BookIcon, CalendarIcon, PlusIcon, SkilletIcon } from "@/components/icons";
-
-type Tab = { href: string; label: string; icon: (p: { size?: number; className?: string }) => React.ReactNode; match: (p: string) => boolean };
-
-const KITCHEN: Tab = { href: "/", label: "Kitchen", icon: SkilletIcon, match: (p) => p === "/" || p.startsWith("/kitchen") };
-const PLAN: Tab = { href: "/plan", label: "Plan", icon: CalendarIcon, match: (p) => p.startsWith("/plan") };
-const GROCERY: Tab = { href: "/grocery", label: "Grocery", icon: BasketIcon, match: (p) => p.startsWith("/grocery") };
-const RECIPES: Tab = { href: "/recipes", label: "Recipes", icon: BookIcon, match: (p) => p.startsWith("/recipes") };
-const ADD: Tab = { href: "/add", label: "Add", icon: PlusIcon, match: (p) => p.startsWith("/add") };
+import { tabsFor } from "@/components/nav/tabs";
+import { useNavHotkeys } from "@/components/nav/useNavHotkeys";
+import { ShortcutsSheet } from "@/components/nav/ShortcutsSheet";
 
 export function TabBar() {
   const role = useRole();
+  const router = useRouter();
   const pathname = usePathname() ?? "/";
   const [switching, setSwitching] = useState(false);
+  const [shortcuts, setShortcuts] = useState(false);
 
-  // Cook mode is full-screen; no chrome. No bar until a role is chosen either.
-  if (!role) return null;
-  if (/^\/recipes\/[^/]+\/cook/.test(pathname)) return null;
+  // Cook mode is full-screen; no chrome, and it owns arrows + space. No bar (and no
+  // hotkeys) until a role is chosen either.
+  const inCookMode = /^\/recipes\/[^/]+\/cook/.test(pathname);
+  const showBar = !!role && !inCookMode;
 
-  const tabs = isPlanner(role) ? [KITCHEN, PLAN, GROCERY, RECIPES, ADD] : [KITCHEN, GROCERY, RECIPES];
+  const tabs = useMemo(() => tabsFor(role), [role]);
+  const hrefs = useMemo(() => tabs.map((t) => t.href), [tabs]);
+  const openPerson = useCallback(() => setSwitching(true), []);
+  const closePerson = useCallback(() => setSwitching(false), []);
+  const closeShortcuts = useCallback(() => setShortcuts(false), []);
+
+  const onHotkey = useCallback(
+    (action: HotkeyAction) => {
+      if (action.kind === "help") return setShortcuts((v) => !v);
+      // A hotkey that acts has done its teaching; get the card out of the way.
+      setShortcuts(false);
+      if (action.kind === "tab") router.push(hrefs[action.index]);
+      else setSwitching(true);
+    },
+    [router, hrefs],
+  );
+  useNavHotkeys({ count: tabs.length, enabled: showBar, onAction: onHotkey });
+
+  if (!showBar) return null;
 
   return (
     <>
@@ -35,8 +51,9 @@ export function TabBar() {
         aria-label="Primary"
       >
         <div className="mx-auto flex max-w-2xl items-stretch justify-between px-2">
-          {tabs.map((t) => {
+          {tabs.map((t, i) => {
             const active = t.match(pathname);
+            const digit = hotkeyDigit(i);
             return (
               <Link
                 key={t.href}
@@ -49,7 +66,10 @@ export function TabBar() {
                 <span className={active ? "" : "opacity-80"} aria-hidden>
                   {t.icon({ size: 20 })}
                 </span>
-                <span className={active ? "font-semibold" : ""}>{t.label}</span>
+                <span className="flex items-baseline gap-1">
+                  <span className={active ? "font-semibold" : ""}>{t.label}</span>
+                  {digit && <Digit>{digit}</Digit>}
+                </span>
                 <span
                   className={`mt-0.5 h-0.5 w-6 rounded-full ${active ? "bg-[var(--color-terra)]" : "bg-transparent"}`}
                   aria-hidden
@@ -58,21 +78,36 @@ export function TabBar() {
             );
           })}
           <button
-            onClick={() => setSwitching(true)}
+            onClick={openPerson}
             className="flex flex-col items-center gap-1 px-2 py-2 text-[11px] uppercase tracking-[0.05em] text-[var(--color-muted)] hover:text-[var(--color-ink)]"
             aria-label={`Signed in as ${ROLE_LABEL[role]}. Switch person.`}
           >
             <span className="font-display flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-ink)] text-[11px] leading-none text-[var(--color-cream)]">
               {ROLE_LABEL[role][0]}
             </span>
-            <span>{ROLE_LABEL[role]}</span>
+            <span className="flex items-baseline gap-1">
+              <span>{ROLE_LABEL[role]}</span>
+              {hotkeyDigit(tabs.length) && <Digit>{hotkeyDigit(tabs.length)}</Digit>}
+            </span>
             <span className="mt-0.5 h-0.5 w-6" aria-hidden />
           </button>
         </div>
       </nav>
       {switching && (
-        <RoleSheet title="Switch person" subtitle="Who is using this phone?" onClose={() => setSwitching(false)} />
+        <RoleSheet title="Switch person" subtitle="Who is using this phone?" onClose={closePerson} />
+      )}
+      {shortcuts && (
+        <ShortcutsSheet tabs={tabs} personLabel={ROLE_LABEL[role]} onClose={closeShortcuts} />
       )}
     </>
+  );
+}
+
+/** The shortcut number, footnote-style beside the label, only where there is a keyboard. */
+function Digit({ children }: { children: React.ReactNode }) {
+  return (
+    <span aria-hidden className="kbd-hint relative -top-1 font-mono text-[9px] leading-none text-[var(--color-faint)]">
+      {children}
+    </span>
   );
 }

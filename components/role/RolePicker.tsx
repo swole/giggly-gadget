@@ -79,6 +79,17 @@ export function RoleSheet({
   const [busy, setBusy] = useState<Role | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Escape closes the switcher — it is reachable by hotkey now, so it needs a keyboard
+  // way out. The first-visit picker passes no onClose and stays uncloseable by design.
+  useEffect(() => {
+    if (!onClose) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   async function pick(r: Role) {
     setBusy(r);
     setError(null);

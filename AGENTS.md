@@ -130,6 +130,7 @@ Green `npm run check` proves the code; it does not prove the page. Before report
 | `components/plan/PlanThisSheet.tsx`, `components/kitchen/MarkCookedButton.tsx`, `app/api/cook-log/route.ts` | Plan-this from a recipe; cook / un-cook |
 | `app/loading.tsx`, `app/error.tsx` | Route skeleton + error screen (note: content reveals on requestAnimationFrame - a hidden/background tab shows the skeleton until visible) |
 | `components/plan/*`, `components/kitchen/*`, `components/nav/TabBar.tsx`, `components/role/*` | UI |
+| `lib/nav/hotkeys.ts` (pure + tested), `components/nav/{tabs,useNavHotkeys,ShortcutsSheet}.tsx` | Tab-bar number keys. `tabs.ts` is the one source of the bar's order, so the digits and the bar can't drift; the digit is the item's position (planner 1-5 + 6 for the person button, helper 1-3 + 4), `?` opens the shortcuts card |
 | `lib/notion-sync.ts`, `lib/notion.ts`, `lib/recipes.ts`, `lib/ingredients/*` | Sync + parsing |
 | `lib/tag-lint.ts`, `scripts/tag-lint.mjs` | Tagging rules (shared by the sync) + Notion audit / fix script |
 | `lib/plan/lunch.ts`, `lib/plan/search.ts`, `app/api/plan/lunch/route.ts` | Lunch at home vs packed for the office; picker search |

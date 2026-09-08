@@ -256,3 +256,14 @@ button:focus-visible, a:focus-visible, input:focus-visible,
   body { background: #fff !important; }
   body::before { display: none !important; }
 }
+
+/* Tab-bar shortcut numbers: only where there is a keyboard to press them with.
+   Phones and tablets keep the bar exactly as it was. */
+.kbd-hint {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .kbd-hint {
+    display: block;
+  }
+}
