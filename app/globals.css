@@ -242,8 +242,16 @@ button:focus-visible, a:focus-visible, input:focus-visible,
 .animate-tick-in {
   animation: tick-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
+/* Membership card: the white code panel is presented, like a card out of a wallet. */
+@keyframes scan-in {
+  from { transform: translateY(14px) scale(0.97); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+.animate-scan-in {
+  animation: scan-in 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
 @media (prefers-reduced-motion: reduce) {
-  .animate-cheer, .animate-float-up, .animate-tick-in, .animate-slide-up, .animate-dice, .animate-rolled-in { animation: none; }
+  .animate-cheer, .animate-float-up, .animate-tick-in, .animate-slide-up, .animate-dice, .animate-rolled-in, .animate-scan-in { animation: none; }
 }
 /* Inputs: 16px on touch screens stops iOS zooming the page when a field is focused. */
 @media (pointer: coarse) {

@@ -16,8 +16,10 @@
     "@notionhq/client": "^5.22.0",
     "@supabase/supabase-js": "^2.106.2",
     "idb-keyval": "^6.2.4",
+    "jsbarcode": "^3.12.3",
     "next": "16.2.6",
     "nosleep.js": "^0.12.0",
+    "qrcode-generator": "^2.0.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "zod": "^4.4.3"
@@ -27,6 +29,7 @@
     "@swc/jest": "^0.2.39",
     "@tailwindcss/postcss": "^4",
     "@types/jest": "^30.0.0",
+    "@types/jsbarcode": "^3.11.4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

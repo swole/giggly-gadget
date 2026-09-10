@@ -31,5 +31,19 @@
     }
   },
   "id": "/",
-  "scope": "/"
+  "scope": "/",
+  "shortcuts": [
+    {
+      "name": "Membership cards",
+      "short_name": "Cards",
+      "url": "/cards",
+      "description": "Loyalty codes for the till"
+    },
+    {
+      "name": "Shopping list",
+      "short_name": "Grocery",
+      "url": "/grocery",
+      "description": "This week's list"
+    }
+  ]
 }

@@ -313,6 +313,12 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
         )}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Link
+            href="/cards"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[var(--color-terra)]/45 bg-[var(--color-terra)]/8 px-3 text-[10px] uppercase tracking-[0.16em] text-[var(--color-terra-dark)] hover:bg-[var(--color-terra)]/15"
+          >
+            <span aria-hidden>▣</span> Cards
+          </Link>
           <div className="flex overflow-hidden rounded-full border border-[var(--color-line)] text-[11px] uppercase tracking-[0.08em]">
             {(["shop", "aisle"] as const).map((v) => (
               <button
