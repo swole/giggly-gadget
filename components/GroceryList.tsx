@@ -15,7 +15,14 @@ import { CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/grocery/labels";
 import { SHOP_LABEL, SHOP_ORDER, type Shop } from "@/lib/grocery/shop";
 import { isPlanner, ROLE_LABEL } from "@/lib/role";
 import { useRole } from "@/components/role/RoleProvider";
-import { BasketIcon, CategoryIcon, ShopIcon, SwapIcon } from "@/components/icons";
+import { BasketIcon, CategoryIcon, CoinsIcon, ShopIcon, SwapIcon } from "@/components/icons";
+import { formatSgd } from "@/lib/money";
+import { freshSeafoodHint } from "@/lib/grocery/fresh";
+import { totalsByShop } from "@/lib/spend/summary";
+import { useExpenses } from "@/lib/spend/useExpenses";
+import type { SpendShop, SpendState } from "@/lib/spend/types";
+import { MoneyChip } from "@/components/spend/MoneyChip";
+import { SpendSheet } from "@/components/spend/SpendSheet";
 
 export type GroceryRow = {
   id: number;
@@ -51,7 +58,18 @@ const DONE_LINES = ["Basket full. Nicely done.", "That's the week bought.", "All
 /** From Friday on, the current week's list carries a pointer to next week's shop. */
 export type NextShop = { week: string; meals: number; items: number } | null;
 
-export function GroceryList({ initial, week, nextShop = null }: { initial: GroceryRow[]; week: string; nextShop?: NextShop }) {
+export function GroceryList({
+  initial,
+  week,
+  nextShop = null,
+  spend,
+}: {
+  initial: GroceryRow[];
+  week: string;
+  nextShop?: NextShop;
+  /** What this week's shop cost so far, plus whether migration 0008 has run. */
+  spend: SpendState;
+}) {
   const role = useRole();
   const canBuild = isPlanner(role);
   const [rows, setRows] = useState<GroceryRow[]>(initial);
@@ -67,6 +85,11 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
   const [live, setLive] = useState<"connecting" | "live" | "reconnecting">("connecting");
   const [justTicked, setJustTicked] = useState<number | null>(null);
   const [doneLine] = useState(() => DONE_LINES[Math.floor(Math.random() * DONE_LINES.length)]);
+  // Money: the chip on each shop heading, the sheet it opens, and what is owed back.
+  const money = useExpenses(spend);
+  const [spendSheet, setSpendSheet] = useState<SpendShop | null>(null);
+  const shopTotals = useMemo(() => totalsByShop(money.expenses), [money.expenses]);
+  const spentAnything = money.expenses.length > 0;
 
   async function refetch() {
     try {
@@ -311,6 +334,23 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
             <span><span className="font-medium">{doneLine}</span>{!showStaples && stapleCount > 0 ? ` Staples are hidden — tap “Show pantry staples” if you need to check those too.` : ""}</span>
           </div>
         )}
+        {money.ready && (spentAnything || money.owed.cents > 0) && (
+          <p className="mt-2 text-xs text-[var(--color-muted)]">
+            {[
+              shopTotals.wet_market.cents > 0 ? `Wet market ${formatSgd(shopTotals.wet_market.cents)}` : null,
+              shopTotals.supermarket.cents > 0 ? `supermarket ${formatSgd(shopTotals.supermarket.cents)}` : null,
+              shopTotals.other.cents > 0 ? `other ${formatSgd(shopTotals.other.cents)}` : null,
+            ]
+              .filter(Boolean)
+              .join(", ")}
+            {money.owed.cents > 0 && (
+              <span className="text-[var(--color-terra-dark)]">
+                {spentAnything ? ". " : ""}
+                {role === "helper" ? `You are owed ${formatSgd(money.owed.cents)}.` : `Owed to Shallaine ${formatSgd(money.owed.cents)}.`}
+              </span>
+            )}
+          </p>
+        )}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Link
@@ -319,6 +359,14 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
           >
             <span aria-hidden>▣</span> Cards
           </Link>
+          {canBuild && money.ready && (
+            <Link
+              href={`/spend?week=${week}`}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[var(--color-terra)]/45 bg-[var(--color-terra)]/8 px-3 text-[10px] uppercase tracking-[0.16em] text-[var(--color-terra-dark)] hover:bg-[var(--color-terra)]/15"
+            >
+              <CoinsIcon size={13} /> Spend
+            </Link>
+          )}
           <div className="flex overflow-hidden rounded-full border border-[var(--color-line)] text-[11px] uppercase tracking-[0.08em]">
             {(["shop", "aisle"] as const).map((v) => (
               <button
@@ -461,6 +509,16 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
                   <span className={`ml-auto text-[12px] uppercase tracking-[0.06em] ${gDone === gTotal ? "text-[var(--color-sage)]" : "text-[var(--color-faint)]"}`}>
                     {gDone === gTotal ? "✓ done" : `${gDone}/${gTotal}`}
                   </span>
+                  {/* Money goes in where the trip ends: on the shop she just finished. */}
+                  {money.ready && view === "shop" && (g.key === "wet_market" || g.key === "supermarket") && (
+                    <MoneyChip
+                      shop={g.key}
+                      cents={shopTotals[g.key as SpendShop].cents}
+                      count={shopTotals[g.key as SpendShop].count}
+                      nudge={gDone === gTotal && shopTotals[g.key as SpendShop].count === 0}
+                      onClick={() => setSpendSheet(g.key as SpendShop)}
+                    />
+                  )}
                 </h2>
                 {g.sections.map((s) => (
                   <div key={s.key} className="mt-3">
@@ -501,6 +559,17 @@ export function GroceryList({ initial, week, nextShop = null }: { initial: Groce
             setRows((prev) => prev.map((x) => (x.id === r.id ? r : x)));
             setSubFor(null);
           }}
+        />
+      )}
+      {spendSheet && (
+        <SpendSheet
+          shop={spendSheet}
+          week={week}
+          expenses={money.expenses.filter((e) => e.shop === spendSheet)}
+          rows={rows}
+          role={role}
+          onClose={() => setSpendSheet(null)}
+          onSaved={() => void money.refresh()}
         />
       )}
     </main>
@@ -694,6 +763,9 @@ function GroceryRowItem({
               <span className="ml-2 text-[11px] text-[var(--color-faint)]">· {row.checked_by}</span>
             )}
             {d.note && <span className="block text-[11px] leading-tight text-[var(--color-faint)]">{d.note}</span>}
+            {!row.checked && freshSeafoodHint(row.name, row.category) && (
+              <span className="block text-[11px] leading-tight text-[var(--color-terra-dark)]">{freshSeafoodHint(row.name, row.category)}</span>
+            )}
           </span>
         </button>
         <button

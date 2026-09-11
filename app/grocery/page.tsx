@@ -1,6 +1,8 @@
 import { GroceryList, type GroceryRow, type NextShop } from "@/components/GroceryList";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { addDays, currentWeekMonday, isoDow, isValidYmd, todayInTz, weekMondayOf } from "@/lib/week";
+import { expensesReady, getSpendWeek } from "@/lib/spend/queries";
+import { EMPTY_OWED } from "@/lib/spend/types";
 
 export const dynamic = "force-dynamic";
 
@@ -12,13 +14,12 @@ export default async function GroceryPage({
   const { week: w } = await searchParams;
   const week = isValidYmd(w) ? weekMondayOf(w) : currentWeekMonday();
   const supa = supabaseAdmin();
-  const { data } = await supa
-    .from("grocery_list")
-    .select("*")
-    .eq("week_of", week)
-    .order("checked")
-    .order("category")
-    .order("name");
+  const [{ data }, spendReady] = await Promise.all([
+    supa.from("grocery_list").select("*").eq("week_of", week).order("checked").order("category").order("name"),
+    expensesReady(),
+  ]);
+  // The money chips and the owed line hide themselves until migration 0008 has run.
+  const spend = spendReady ? await getSpendWeek(week) : { week_of: week, expenses: [], owed: EMPTY_OWED };
 
   // Shallaine shops on Saturday FOR the coming week: from Friday on, the current
   // week's list points at next week's, with honest counts (or "not planned yet").
@@ -35,5 +36,13 @@ export default async function GroceryPage({
   }
 
   // keyed by week so navigating weeks remounts with fresh initial rows
-  return <GroceryList key={week} initial={(data ?? []) as GroceryRow[]} week={week} nextShop={nextShop} />;
+  return (
+    <GroceryList
+      key={week}
+      initial={(data ?? []) as GroceryRow[]}
+      week={week}
+      nextShop={nextShop}
+      spend={{ ...spend, ready: spendReady }}
+    />
+  );
 }

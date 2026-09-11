@@ -193,6 +193,37 @@ export function SunIcon(p: IconProps) {
   );
 }
 
+/** Money on a receipt: the till slip with its torn foot. */
+export function ReceiptIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M6 3h12v18l-2-1.25L14 21l-2-1.25L10 21l-2-1.25L6 21z" />
+      <path d="M9 8h6M9 12h6M9 16h3" />
+    </Svg>
+  );
+}
+
+/** Cash: two coins. */
+export function CoinsIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <ellipse cx="9" cy="7" rx="5.5" ry="3" />
+      <path d="M3.5 7v4c0 1.66 2.46 3 5.5 3s5.5-1.34 5.5-3V7" />
+      <path d="M14.5 10.4c2.4.35 4 1.4 4 2.6v4c0 1.66-2.46 3-5.5 3-2.2 0-4.1-.7-5-1.7" />
+    </Svg>
+  );
+}
+
+/** Snap the receipt. */
+export function CameraIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M3.5 8.5h3l1.5-2.5h8l1.5 2.5h3v10a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5z" />
+      <circle cx="12" cy="13.5" r="3.5" />
+    </Svg>
+  );
+}
+
 /** Swap / substitute. */
 export function SwapIcon(p: IconProps) {
   return (
