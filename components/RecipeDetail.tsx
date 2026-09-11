@@ -13,6 +13,7 @@ import { AddToGroceryButton } from "./AddToGroceryButton";
 import { WantToTryStar } from "./WantToTryStar";
 import { RatingStars } from "./RatingStars";
 import { renderInlineMd } from "@/lib/markdown";
+import { extractIngredientTips } from "@/lib/recipe-tips";
 import { eatersFactor, parseEaters, EATERS_LABEL } from "@/lib/portions";
 import { isPlanner } from "@/lib/role";
 import { useRole } from "@/components/role/RoleProvider";
@@ -52,6 +53,11 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
   const total = totalMinutes(recipe);
   const steps = useMemo(
     () => extractMethodSteps(recipe.instructions_md),
+    [recipe.instructions_md]
+  );
+  // Buying and seasoning tips written beside the ingredients (the sodium pass puts them there).
+  const tips = useMemo(
+    () => extractIngredientTips(recipe.instructions_md),
     [recipe.instructions_md]
   );
 
@@ -174,6 +180,22 @@ export function RecipeDetail({ recipe, ingredients }: Props) {
             />
           ))}
         </ul>
+
+        {tips.length > 0 && (
+          <ul className="mt-5 space-y-2">
+            {tips.map((t, i) => (
+              <li
+                key={i}
+                className="flex gap-2.5 rounded-xl border border-[var(--color-line)]/70 bg-[var(--color-paper)]/50 px-3.5 py-2.5 text-[13px] leading-snug text-[var(--color-body)]"
+              >
+                <span aria-hidden className="shrink-0 text-base leading-none">
+                  {t.icon ?? "•"}
+                </span>
+                <span>{t.text}</span>
+              </li>
+            ))}
+          </ul>
+        )}
 
         {/* Cooking is the page's main act — it owns the terracotta. The grocery list
             already follows the plan by itself, so its manual button goes quiet. */}

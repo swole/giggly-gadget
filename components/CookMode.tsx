@@ -7,6 +7,7 @@ import type { ParsedIngredientRow, Recipe } from "@/lib/recipes";
 import { detectTimers } from "@/lib/timers";
 import { requestWakeLock } from "@/lib/wake-lock";
 import { renderInlineMd } from "@/lib/markdown";
+import { extractIngredientTips } from "@/lib/recipe-tips";
 import { formatRange } from "@/lib/scale";
 import { annotateAmounts } from "@/lib/cook/annotate";
 import { TimerChip } from "./TimerChip";
@@ -312,6 +313,17 @@ function IngredientsPeek({
             Close
           </button>
         </div>
+        {extractIngredientTips(recipe.instructions_md).map((t, i) => (
+          <p
+            key={i}
+            className="mt-3 flex gap-2.5 rounded-xl border border-[var(--color-line)]/70 bg-[var(--color-paper)]/50 px-3.5 py-2.5 text-[13px] leading-snug text-[var(--color-body)]"
+          >
+            <span aria-hidden className="shrink-0 text-base leading-none">
+              {t.icon ?? "•"}
+            </span>
+            <span>{t.text}</span>
+          </p>
+        ))}
         <ul className="mt-4 pb-2">
           {ingredients.map((ing) => (
             <li key={ing.line_index} className="flex items-start gap-3 border-b border-[var(--color-line)]/50 py-2 text-sm last:border-0">

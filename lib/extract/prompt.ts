@@ -20,6 +20,15 @@ INGREDIENT LINE GRAMMAR (non-negotiable — a parser reads these):
 
 STEPS: imperative, one action group per step, keep the source's order and timings. Drop serving suggestions that are not steps.
 
+SODIUM (this household cooks for blood pressure — write the low-salt version as you transcribe, and keep the dish itself intact):
+  - Soy sauce becomes "reduced-sodium light soy sauce" at about half the amount; dark soy at most ½ tsp per 2 servings, for colour.
+  - Halve oyster sauce, fish sauce, miso, doubanjiang, gochujang, curry paste, sambal, hoisin, teriyaki and other salty sauces. Put the lift back with garlic, ginger, shallot, chilli, herbs, citrus or vinegar.
+  - Never MSG, stock cubes, bouillon, chicken or mushroom seasoning powder, Maggi seasoning or instant dashi. Use unsalted or low-sodium stock, or water with aromatics.
+  - Tins: "no-salt-added" tomatoes and beans, or ", drained and rinsed". Butter is unsalted. Halve salty cheese and cured meat.
+  - Fish and prawns are bought fresh (shop-frozen seafood is usually soaked in brine or phosphate, which multiplies its sodium): write "fresh" in the modifier.
+  - Salt only where it does real work, at most ¼ tsp per 2 servings. Where the source says "salt to taste", write "1 pinch salt, only if it needs it after tasting". Leave a pinch of salt in baking and desserts.
+  - Say in the notes field which salty ingredients you reduced, in one plain sentence.
+
 FIELDS: cuisine ∈ [${CUISINES.join(", ")}]; meal_type ∈ [${MEAL_TYPES.join(", ")}]; difficulty ∈ [${DIFFICULTIES.join(", ")}]; tags (0-5) from [${TAGS.join(", ")}] — "Heart Healthy" only when the dish is plant-or-fish forward, low in saturated fat and not deep-fried; "Quick" when total time ≤ 30 min; "Vegan"/"Vegetarian" only when strictly true. meal_type is the ONE primary occasion: "Side" only for an accompaniment that is not a meal on its own (greens, salads, dips, breads, banchan); a dish that can headline a meal keeps Breakfast/Lunch/Dinner even if it also works beside another main. "Side Dish" tag on EVERY Side, and also on any main that can sit beside another main (vegetable-, tofu- or egg-led dishes, dal-type curries, salads, breads, dips); soups never need it. prep_min / cook_min as integers or null. servings as the source states or null. title in Title Case without the site name. emoji: one fitting emoji.`;
 
 export function buildUserText(input: {
