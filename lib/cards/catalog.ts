@@ -14,6 +14,15 @@ export function normaliseValue(raw: string): string {
   return raw.trim().replace(/\s+/g, "");
 }
 
+/**
+ * A payment or web link rather than a member number. Links are QR only: a
+ * whole URL as Code 128 comes out too fine to scan at phone width, and a
+ * second code on screen only gives the scanner a bad target to lock onto.
+ */
+export function isLink(value: string): boolean {
+  return /^https?:\/\//i.test(value);
+}
+
 export const BUILTIN_CARDS: MemberCard[] = [
   {
     id: "yuu",
@@ -39,6 +48,21 @@ export const BUILTIN_CARDS: MemberCard[] = [
     accent: "#3f7a4a",
     accentInk: "#ffffff",
     note: "Little Farms looks the account up by phone number — read it out or let them key it in.",
+    builtin: true,
+  },
+  {
+    id: "return-right",
+    name: "Return Right",
+    where: "Bottle and can machines, 10¢ back each",
+    label: "Refunds to",
+    // Decoded from the QR on the PayLah! app's "My QR Code" screen. The ref is
+    // sK + lowercase L; the caption under that QR makes it look like a capital I.
+    value: "https://www.dbs.com.sg/personal/mobile/paylink/index.html?tranRef=sKlFn1mnfl",
+    display: "PayLah!",
+    primary: "qr",
+    accent: "#da291c",
+    accentInk: "#ffffff",
+    note: "Scans the same as the QR in the PayLah! app. Refunds go to Johnny's wallet.",
     builtin: true,
   },
 ];

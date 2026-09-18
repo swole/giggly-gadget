@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Barcode, QrCode } from "./CodeArt";
+import { isLink } from "@/lib/cards/catalog";
 import { clearCardPhoto, fileToDataUrl, getCardPhoto, setCardPhoto } from "@/lib/cards/store";
 import { requestWakeLock } from "@/lib/wake-lock";
 import type { MemberCard } from "@/lib/cards/types";
@@ -78,6 +79,7 @@ export function ScanPanel({ card, onClose }: { card: MemberCard; onClose: () => 
   const usingPhoto = Boolean(photo) && !showGenerated;
   const showQr = card.primary !== "number";
   const heroIsNumber = card.primary === "number" && !usingPhoto;
+  const link = isLink(card.value);
 
   // Portalled to <body>: the page's <main> is its own stacking context, so a
   // fixed panel inside it still renders *under* the tab bar.
@@ -123,9 +125,11 @@ export function ScanPanel({ card, onClose }: { card: MemberCard; onClose: () => 
 
           {!usingPhoto && (
             <>
-              <div className={heroIsNumber || showQr ? "mt-5 border-t border-black/10 pt-5" : ""}>
-                <Barcode value={card.value} height={heroIsNumber ? 84 : 70} className="mx-auto block h-auto w-full" />
-              </div>
+              {!link && (
+                <div className={heroIsNumber || showQr ? "mt-5 border-t border-black/10 pt-5" : ""}>
+                  <Barcode value={card.value} height={heroIsNumber ? 84 : 70} className="mx-auto block h-auto w-full" />
+                </div>
+              )}
               {!heroIsNumber && (
                 <p className="mt-4 text-center font-mono text-2xl font-semibold tracking-[0.14em] tabular-nums">
                   {card.display}
@@ -143,7 +147,7 @@ export function ScanPanel({ card, onClose }: { card: MemberCard; onClose: () => 
 
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           <button onClick={copy} className={pill}>
-            {copied ? "Copied ✓" : "Copy number"}
+            {copied ? "Copied ✓" : link ? "Copy link" : "Copy number"}
           </button>
           {photoLoaded && (
             <>
