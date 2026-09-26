@@ -12,9 +12,10 @@ export function lunchLocationOf(rows: LunchLocationRow[], day: string, person: L
   return rows.find((r) => r.planned_for === day && r.person === person)?.location ?? "home";
 }
 
-/** Who takes lunch to the office that day, in display order. */
-export function lunchAway(rows: LunchLocationRow[], day: string): LunchPerson[] {
-  return LUNCH_PEOPLE.filter((p) => lunchLocationOf(rows, day, p) === "office");
+/** Who takes lunch to the office that day, in display order. `travelling` (away on a trip at
+ *  lunch, see travel.ts) are left out: nobody packs a lunch for someone out of town. */
+export function lunchAway(rows: LunchLocationRow[], day: string, travelling: LunchPerson[] = []): LunchPerson[] {
+  return LUNCH_PEOPLE.filter((p) => lunchLocationOf(rows, day, p) === "office" && !travelling.includes(p));
 }
 
 export function toggleLunchLocation(cur: LunchLocation): LunchLocation {

@@ -1,7 +1,7 @@
 // Server-side reads for the planner and kitchen. Writes go through /api/plan/* so the
 // server can stamp the role.
 import { supabaseAdmin } from "@/lib/supabase/server";
-import type { LunchLocationRow, PlannedMeal, PlannerRecipe } from "./types";
+import type { LunchLocationRow, PlannedMeal, PlannerRecipe, TripRow } from "./types";
 import { addDays } from "@/lib/week";
 
 const PLANNER_RECIPE_COLS =
@@ -49,6 +49,24 @@ export async function getLunchLocationsBetween(from: string, to: string): Promis
     throw error;
   }
   return (data ?? []) as LunchLocationRow[];
+}
+
+/** Trips that touch any day in [from, to] (inclusive). Tolerates the table not existing yet (0009 pending): returns []. */
+export async function getTripsOverlapping(from: string, to: string): Promise<TripRow[]> {
+  const supa = supabaseAdmin();
+  const { data, error } = await supa.from("trips").select("*").lte("from_date", to).gte("to_date", from).order("from_date");
+  if (error) {
+    if (error.code === "42P01" || /trips/.test(error.message)) return [];
+    throw error;
+  }
+  return (data ?? []) as TripRow[];
+}
+
+/** True once migration 0009 has run (the trips table exists). The planner hides "Travelling" until then. */
+export async function tripsReady(): Promise<boolean> {
+  const supa = supabaseAdmin();
+  const { error } = await supa.from("trips").select("id").limit(1);
+  return !error;
 }
 
 /** True once migration 0007 has run (the lunch_locations table exists). The planner hides the lunch pills until then. */

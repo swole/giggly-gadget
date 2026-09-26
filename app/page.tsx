@@ -1,5 +1,5 @@
 import { KitchenView, type ShopAhead } from "@/components/kitchen/KitchenView";
-import { getLunchLocationsBetween, getPlannedMealsBetween, listPlannerRecipes } from "@/lib/plan/queries";
+import { getLunchLocationsBetween, getPlannedMealsBetween, getTripsOverlapping, listPlannerRecipes } from "@/lib/plan/queries";
 import { analyseRecipes } from "@/lib/plan/analysis";
 import type { PlannerRecipe } from "@/lib/plan/types";
 import { supabaseAdmin } from "@/lib/supabase/server";
@@ -11,10 +11,11 @@ export const dynamic = "force-dynamic";
 // planner is one tab away for Johnny and Lydia.
 export default async function Home() {
   const today = todayInTz();
-  const [meals, recipes, lunch] = await Promise.all([
+  const [meals, recipes, lunch, trips] = await Promise.all([
     getPlannedMealsBetween(today, addDays(today, 6)),
     listPlannerRecipes(),
     getLunchLocationsBetween(today, addDays(today, 6)),
+    getTripsOverlapping(today, addDays(today, 6)),
   ]);
   const byId: Record<string, PlannerRecipe> = {};
   for (const r of recipes) byId[r.id] = r;
@@ -33,5 +34,15 @@ export default async function Home() {
     shopAhead = { week: next, meals: nextMeals ?? 0, items: items ?? 0 };
   }
 
-  return <KitchenView today={today} initialMeals={meals} initialLunch={lunch} recipes={byId} hintsByRecipe={hintsByRecipe} shopAhead={shopAhead} />;
+  return (
+    <KitchenView
+      today={today}
+      initialMeals={meals}
+      initialLunch={lunch}
+      initialTrips={trips}
+      recipes={byId}
+      hintsByRecipe={hintsByRecipe}
+      shopAhead={shopAhead}
+    />
+  );
 }

@@ -8,6 +8,9 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { buildGroceryList, type GroceryItemInput } from "@/lib/ingredients/normalize";
 import { eatersFactor, type Eaters } from "@/lib/portions";
 import { addDays } from "@/lib/week";
+import { leftoverSources, mealTravel } from "@/lib/plan/travel";
+import { getTripsOverlapping } from "@/lib/plan/queries";
+import type { Slot } from "@/lib/plan/types";
 import { isStaple, toStapleSet } from "./staples";
 import { shopFor } from "./shop";
 import { reconcileGrocery, type DesiredRow, type ExistingRow } from "./reconcile";
@@ -24,7 +27,7 @@ export type BuildResult = {
   recipes_without_ingredients: string[];
 };
 
-type MealRow = { id: number; recipe_id: string; eaters: Eaters; leftover_of: number | null };
+type MealRow = { id: number; recipe_id: string | null; eaters: Eaters; leftover_of: number | null; planned_for: string; slot: Slot };
 type IngRow = {
   recipe_id: string;
   name: string | null;
@@ -40,15 +43,25 @@ export async function buildWeekGroceries(weekOf: string): Promise<BuildResult> {
   const supa = supabaseAdmin();
   const to = addDays(weekOf, 6);
 
-  // 1. planned meals for the week (leftovers carry no shopping)
-  const { data: mealsData, error: mErr } = await supa
-    .from("planned_meals")
-    .select("id, recipe_id, eaters, leftover_of")
-    .gte("planned_for", weekOf)
-    .lte("planned_for", to);
+  // 1. planned meals for the week (leftovers carry no shopping) + anyone travelling
+  const [{ data: mealsData, error: mErr }, trips] = await Promise.all([
+    supa
+      .from("planned_meals")
+      .select("id, recipe_id, eaters, leftover_of, planned_for, slot")
+      .gte("planned_for", weekOf)
+      .lte("planned_for", to),
+    getTripsOverlapping(weekOf, to),
+  ]);
   if (mErr) throw mErr;
+  const rows = (mealsData ?? []) as MealRow[];
   // Leftovers carry no shopping; one-off items (custom_text, recipe_id null) have no ingredients.
-  const meals = ((mealsData ?? []) as MealRow[]).filter((m) => m.leftover_of === null && m.recipe_id !== null);
+  // A traveller is taken out of each meal (lib/plan/travel.ts); a meal with leftovers planned
+  // from it keeps its usual amount so the traveller's share becomes the leftovers.
+  const withLeftovers = leftoverSources(rows);
+  const meals = rows
+    .filter((m): m is MealRow & { recipe_id: string } => m.leftover_of === null && m.recipe_id !== null)
+    .map((m) => ({ ...m, cook: mealTravel(m, trips, withLeftovers.has(m.id)).cook }))
+    .filter((m): m is typeof m & { cook: Eaters } => m.cook !== null);
   const recipeIds = Array.from(new Set(meals.map((m) => m.recipe_id)));
 
   // 2. ingredients for those recipes (+ titles for the "no ingredients" report)
@@ -80,7 +93,7 @@ export async function buildWeekGroceries(weekOf: string): Promise<BuildResult> {
   for (const m of meals) {
     for (const line of byRecipe.get(m.recipe_id) ?? []) {
       if (!line.scalable || line.to_taste || !line.name || line.qty_min === null) continue;
-      const f = eatersFactor(m.eaters, line.category);
+      const f = eatersFactor(m.cook, line.category);
       inputs.push({
         recipe_id: m.recipe_id,
         name: line.name,

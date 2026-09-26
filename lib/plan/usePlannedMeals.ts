@@ -7,8 +7,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import type { LunchLocation, LunchLocationRow, LunchPerson, NewPlannedMeal, PlannedMeal, PlannedMealPatch } from "./types";
+import type { LunchLocation, LunchLocationRow, LunchPerson, NewPlannedMeal, PlannedMeal, PlannedMealPatch, TripInput, TripRow } from "./types";
 import { addDays, weekMondayOf } from "@/lib/week";
+import { tripOverlaps } from "./travel";
 
 type Status = "idle" | "live" | "reconnecting";
 
@@ -19,9 +20,12 @@ export function usePlannedMeals(
   window?: { from: string; to: string },
   /** lunch_locations rows for the same week / window (home vs office per day + person). */
   initialLunch: LunchLocationRow[] = [],
+  /** trips touching the same week / window (who is travelling, see travel.ts). */
+  initialTrips: TripRow[] = [],
 ) {
   const [meals, setMeals] = useState<PlannedMeal[]>(() => sortMeals(initial));
   const [lunch, setLunchRows] = useState<LunchLocationRow[]>(initialLunch);
+  const [trips, setTrips] = useState<TripRow[]>(() => sortTrips(initialTrips));
   const [status, setStatus] = useState<Status>("idle");
   const subscribedOnce = useRef(false);
   const patchSeq = useRef<Record<number, number>>({});
@@ -65,29 +69,49 @@ export function usePlannedMeals(
     setLunchRows((prev) => prev.filter((x) => !(x.planned_for === planned_for && x.person === person)));
   }, []);
 
+  // ---- trips: whole rows keyed by id; kept while they touch the week / window ----
+  const tripInWindow = useCallback(
+    (t: TripRow) => {
+      if (weekOf) return tripOverlaps(t, weekOf, addDays(weekOf, 6));
+      if (window) return tripOverlaps(t, window.from, window.to);
+      return true;
+    },
+    [weekOf, window],
+  );
+  const upsertTripLocal = useCallback((t: TripRow) => {
+    setTrips((prev) => sortTrips([...prev.filter((x) => x.id !== t.id), t]));
+  }, []);
+  const removeTripLocal = useCallback((id: number) => {
+    setTrips((prev) => prev.filter((x) => x.id !== id));
+  }, []);
+
   const refetch = useCallback(async () => {
     if (weekOf) {
       const res = await fetch(`/api/plan/meals?week=${weekOf}`, { cache: "no-store" });
       if (res.ok) {
-        const j = (await res.json()) as { meals: PlannedMeal[]; lunch?: LunchLocationRow[] };
+        const j = (await res.json()) as { meals: PlannedMeal[]; lunch?: LunchLocationRow[]; trips?: TripRow[] };
         setMeals(sortMeals(j.meals));
         setLunchRows(j.lunch ?? []);
+        setTrips(sortTrips(j.trips ?? []));
       }
     } else if (window) {
       // kitchen window may straddle two weeks — fetch both and filter
       const weeks = new Set([weekMondayOf(window.from), weekMondayOf(window.to)]);
       const all: PlannedMeal[] = [];
       const allLunch: LunchLocationRow[] = [];
+      const allTrips = new Map<number, TripRow>();
       for (const w of weeks) {
         const res = await fetch(`/api/plan/meals?week=${w}`, { cache: "no-store" });
         if (res.ok) {
-          const j = (await res.json()) as { meals: PlannedMeal[]; lunch?: LunchLocationRow[] };
+          const j = (await res.json()) as { meals: PlannedMeal[]; lunch?: LunchLocationRow[]; trips?: TripRow[] };
           all.push(...j.meals);
           allLunch.push(...(j.lunch ?? []));
+          for (const t of j.trips ?? []) allTrips.set(t.id, t);
         }
       }
       setMeals(sortMeals(all.filter((m) => m.planned_for >= window.from && m.planned_for <= window.to)));
       setLunchRows(allLunch.filter((r) => r.planned_for >= window.from && r.planned_for <= window.to));
+      setTrips(sortTrips(Array.from(allTrips.values()).filter((t) => tripOverlaps(t, window.from, window.to))));
     }
   }, [weekOf, window]);
 
@@ -145,6 +169,27 @@ export function usePlannedMeals(
       supa.removeChannel(ch);
     };
   }, [weekOf, lunchInWindow, upsertLunchLocal, removeLunchLocal]);
+
+  // Third channel for trips (tiny table; until migration 0009 runs it may not exist, so no status).
+  useEffect(() => {
+    const supa = supabaseBrowser();
+    const ch = supa
+      .channel(weekOf ? `trips:${weekOf}` : "trips:window")
+      .on("postgres_changes", { event: "*", schema: "public", table: "trips" }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          const old = payload.old as Partial<TripRow>;
+          if (old.id) removeTripLocal(old.id);
+          return;
+        }
+        const t = payload.new as TripRow;
+        if (tripInWindow(t)) upsertTripLocal(t);
+        else removeTripLocal(t.id); // edited out of view
+      })
+      .subscribe();
+    return () => {
+      supa.removeChannel(ch);
+    };
+  }, [weekOf, tripInWindow, upsertTripLocal, removeTripLocal]);
 
   // ---- mutations (optimistic) ----
 
@@ -261,7 +306,48 @@ export function usePlannedMeals(
     [lunch, upsertLunchLocal, removeLunchLocal],
   );
 
-  return { meals, lunch, status, add, remove, patch, setLunch, refetch };
+  /** Create (no id) or edit a trip. Resolves to an error message, or null when saved. */
+  const saveTrip = useCallback(
+    async (input: TripInput, id?: number): Promise<string | null> => {
+      try {
+        const res = await fetch(id ? `/api/plan/trips/${id}` : "/api/plan/trips", {
+          method: id ? "PATCH" : "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input),
+        });
+        const j = (await res.json().catch(() => ({}))) as { trip?: TripRow; error?: string };
+        if (!res.ok || !j.trip) return j.error ?? `Could not save (${res.status})`;
+        if (tripInWindow(j.trip)) upsertTripLocal(j.trip);
+        else removeTripLocal(j.trip.id);
+        return null;
+      } catch {
+        return "No connection. Try again.";
+      }
+    },
+    [tripInWindow, upsertTripLocal, removeTripLocal],
+  );
+
+  const deleteTrip = useCallback(
+    async (id: number): Promise<boolean> => {
+      const before = trips.find((t) => t.id === id);
+      removeTripLocal(id);
+      try {
+        const res = await fetch(`/api/plan/trips/${id}`, { method: "DELETE" });
+        if (!res.ok && before) upsertTripLocal(before);
+        return res.ok;
+      } catch {
+        if (before) upsertTripLocal(before);
+        return false;
+      }
+    },
+    [trips, removeTripLocal, upsertTripLocal],
+  );
+
+  return { meals, lunch, trips, status, add, remove, patch, setLunch, saveTrip, deleteTrip, refetch };
+}
+
+function sortTrips(ts: TripRow[]): TripRow[] {
+  return ts.slice().sort((a, b) => a.from_date.localeCompare(b.from_date) || a.person.localeCompare(b.person) || a.id - b.id);
 }
 
 function sortMeals(ms: PlannedMeal[]): PlannedMeal[] {

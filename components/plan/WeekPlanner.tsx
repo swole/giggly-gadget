@@ -8,18 +8,32 @@
 import { thumb } from "@/lib/images";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { LunchLocation, LunchLocationRow, LunchPerson, NewPlannedMeal, PlannedMeal, PlannerRecipe, Slot } from "@/lib/plan/types";
+import type { LunchLocation, LunchLocationRow, LunchPerson, NewPlannedMeal, PlannedMeal, PlannerRecipe, Slot, TripInput, TripRow } from "@/lib/plan/types";
 import { LUNCH_PEOPLE, mealTitle, SLOT_LABEL } from "@/lib/plan/types";
 import { LUNCH_PERSON_LABEL, LUNCH_PERSON_SHORT, lunchLocationOf, toggleLunchLocation } from "@/lib/plan/lunch";
+import {
+  dayChipText,
+  eatersChip,
+  eatersSentence,
+  leftoverSources,
+  mealTravel,
+  travelOnDay,
+  travellersAt,
+  tripSummary,
+  type DayTravel,
+  type MealTravel,
+} from "@/lib/plan/travel";
 import { usePlannedMeals } from "@/lib/plan/usePlannedMeals";
 import { EATERS_SHORT, nextEaters } from "@/lib/portions";
 import { addDays, formatDayLabel, formatWeekRange, isoDow, weekDates } from "@/lib/week";
-import { isPlanner } from "@/lib/role";
+import { isPlanner, type Role } from "@/lib/role";
 import { useRole } from "@/components/role/RoleProvider";
+import { SuitcaseIcon } from "@/components/icons";
 import { RecipePickerSheet } from "./RecipePickerSheet";
 import { WeekActionsMenu } from "./WeekActionsMenu";
 import { RandomizeSheet, loadSavedTheme, type RollScope } from "./RandomizeSheet";
 import { ShareWeekButton } from "./ShareWeekButton";
+import { TripSheet } from "./TripSheet";
 import { Die } from "./Die";
 import type { RollFilters } from "@/lib/plan/randomize";
 import { weekConstraintStatus, type ProteinClass } from "@/lib/plan/constraints";
@@ -46,12 +60,20 @@ type RollToast = {
   undoLabel?: string;
 };
 
+/** A new trip starts on the first day of the viewed week that has not passed, for the person holding the phone. */
+function newTripDefaults(role: Role | null, weekOf: string, today: string): TripInput {
+  const start = today > weekOf && today <= addDays(weekOf, 6) ? today : weekOf;
+  return { person: role === "lydia" ? "lydia" : "johnny", from_date: start, from_slot: "breakfast", to_date: addDays(start, 3), to_slot: "dinner" };
+}
+
 export function WeekPlanner({
   weekOf,
   today,
   initialMeals,
   initialLunch = [],
   lunchReady = true,
+  initialTrips = [],
+  tripsReady = false,
   recipes,
   classByRecipe,
   proteinByRecipe,
@@ -63,6 +85,9 @@ export function WeekPlanner({
   initialLunch?: LunchLocationRow[];
   /** False until migration 0007 exists in this database: the lunch pills stay hidden rather than failing on tap. */
   lunchReady?: boolean;
+  initialTrips?: TripRow[];
+  /** False until migration 0009 exists: the Travelling button stays hidden. */
+  tripsReady?: boolean;
   recipes: PlannerRecipe[];
   classByRecipe: Record<string, ProteinClass[]>;
   proteinByRecipe: Record<string, { j: number; l: number }>;
@@ -70,8 +95,16 @@ export function WeekPlanner({
 }) {
   const role = useRole();
   const canEdit = isPlanner(role);
-  const { meals, lunch, status, add, remove, patch, setLunch, refetch } = usePlannedMeals(weekOf, initialMeals, undefined, initialLunch);
+  const { meals, lunch, trips, status, add, remove, patch, setLunch, saveTrip, deleteTrip, refetch } = usePlannedMeals(
+    weekOf,
+    initialMeals,
+    undefined,
+    initialLunch,
+    initialTrips,
+  );
   const constraints = useMemo(() => weekConstraintStatus(meals, classByRecipe), [meals, classByRecipe]);
+  const withLeftovers = useMemo(() => leftoverSources(meals), [meals]);
+  const [tripSheet, setTripSheet] = useState<{ trip: TripRow | null } | null>(null);
   const [picker, setPicker] = useState<{ day: string; slot: Slot } | null>(null);
   const [showSnacks, setShowSnacks] = useState(false);
   const [showSunday, setShowSunday] = useState(false);
@@ -272,10 +305,19 @@ export function WeekPlanner({
                   <Die size={13} /> Randomize
                 </button>
               )}
-              <ShareWeekButton weekOf={weekOf} meals={meals} byId={byId} lunch={lunch} />
+              <ShareWeekButton weekOf={weekOf} meals={meals} byId={byId} lunch={lunch} trips={trips} />
               <Link href={`/plan/print?week=${weekOf}`} className="btn-quiet px-3 py-1.5 text-[11px] uppercase tracking-[0.08em]">
                 Print
               </Link>
+              {tripsReady && (
+                <button
+                  onClick={() => setTripSheet({ trip: null })}
+                  className="btn-quiet whitespace-nowrap px-3 py-1.5 text-[11px] uppercase tracking-[0.08em]"
+                  title="Mark someone as out of town"
+                >
+                  <SuitcaseIcon size={13} /> Travelling
+                </button>
+              )}
               <WeekActionsMenu weekOf={weekOf} onDone={() => void refetch()} />
             </div>
           )}
@@ -284,6 +326,30 @@ export function WeekPlanner({
           <p className="mt-3 rounded-xl bg-[var(--color-paper-2)]/50 px-3 py-2 text-xs text-[var(--color-muted)]">
             Read-only view. Johnny and Lydia plan the week; switch person from the bar below to edit.
           </p>
+        )}
+        {trips.length > 0 && (
+          <ul className="mt-4 space-y-2" aria-label="Travelling this week">
+            {trips.map((t) => (
+              <li
+                key={t.id}
+                className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-mustard)]/50 bg-[var(--color-mustard)]/12 px-4 py-2.5 text-sm text-[var(--color-ink)]"
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <SuitcaseIcon size={16} className="shrink-0 text-[var(--color-terra-dark)]" />
+                  <span className="min-w-0">{tripSummary(t)}</span>
+                </span>
+                {canEdit && (
+                  <button
+                    onClick={() => setTripSheet({ trip: t })}
+                    className="btn-quiet shrink-0 px-3 py-1 text-[11px] uppercase tracking-[0.08em]"
+                    aria-label={`Edit trip: ${tripSummary(t)}`}
+                  >
+                    Edit
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
       </header>
 
@@ -337,6 +403,9 @@ export function WeekPlanner({
             lunch={lunch}
             lunchReady={lunchReady}
             onSetLunch={(p, l) => void setLunch(d, p, l)}
+            trips={trips}
+            withLeftovers={withLeftovers}
+            onEditTrip={(t) => setTripSheet({ trip: t })}
           />
         ))}
 
@@ -375,6 +444,9 @@ export function WeekPlanner({
                 lunch={lunch}
                 lunchReady={lunchReady}
                 onSetLunch={(p, l) => void setLunch(days[6], p, l)}
+                trips={trips}
+                withLeftovers={withLeftovers}
+                onEditTrip={(t) => setTripSheet({ trip: t })}
                 bare
               />
             </div>
@@ -446,6 +518,16 @@ export function WeekPlanner({
         />
       )}
 
+      {tripSheet && canEdit && (
+        <TripSheet
+          trip={tripSheet.trip}
+          defaults={newTripDefaults(role, weekOf, today)}
+          onSave={(input) => saveTrip(input, tripSheet.trip?.id)}
+          onDelete={tripSheet.trip ? () => deleteTrip(tripSheet.trip!.id) : undefined}
+          onClose={() => setTripSheet(null)}
+        />
+      )}
+
       {noteFor && (
         <NoteSheet
           meal={noteFor}
@@ -506,6 +588,9 @@ function DayCard({
   lunch,
   lunchReady,
   onSetLunch,
+  trips,
+  withLeftovers,
+  onEditTrip,
   bare = false,
 }: {
   day: string;
@@ -527,17 +612,24 @@ function DayCard({
   lunch: LunchLocationRow[];
   lunchReady: boolean;
   onSetLunch: (person: LunchPerson, location: LunchLocation) => void;
+  trips: TripRow[];
+  withLeftovers: Set<number>;
+  onEditTrip: (t: TripRow) => void;
   bare?: boolean;
 }) {
+  const travelOf = (m: PlannedMeal) => mealTravel(m, trips, withLeftovers.has(m.id));
+  const away: DayTravel[] = travelOnDay(trips, day);
   // Protein for the day from the heart-healthy recipes' notes (J / L grams). Partial when a recipe has none.
-  // One-off items (no recipe) don't count as missing — they're extras, not mains.
+  // One-off items (no recipe) don't count as missing — they're extras, not mains. A traveller eats none of it.
   const protein = meals.reduce(
     (acc, m) => {
       if (m.recipe_id === null) return acc;
       const p = proteinByRecipe[m.recipe_id];
       if (!p) return { ...acc, missing: acc.missing + 1 };
-      if (m.eaters === "johnny") return { ...acc, j: acc.j + p.j };
-      if (m.eaters === "lydia") return { ...acc, l: acc.l + p.l };
+      const eaters = travelOf(m).eaters;
+      if (eaters === null) return acc;
+      if (eaters === "johnny") return { ...acc, j: acc.j + p.j };
+      if (eaters === "lydia") return { ...acc, l: acc.l + p.l };
       return { ...acc, j: acc.j + p.j, l: acc.l + p.l };
     },
     { j: 0, l: 0, missing: 0 },
@@ -583,6 +675,19 @@ function DayCard({
           </span>
         </div>
       )}
+      {away.map((dt) => (
+        <button
+          key={dt.person}
+          type="button"
+          onClick={canEdit ? () => onEditTrip(dt.trip) : undefined}
+          disabled={!canEdit}
+          className={`flex w-full items-center gap-2 border-b border-[var(--color-mustard)]/40 bg-[var(--color-mustard)]/10 px-4 py-1.5 text-left text-xs text-[var(--color-ink)] ${canEdit ? "hover:bg-[var(--color-mustard)]/20" : ""}`}
+          aria-label={`${dayChipText(dt)}.${canEdit ? " Tap to edit the trip." : ""}`}
+        >
+          <SuitcaseIcon size={13} className="shrink-0 text-[var(--color-terra-dark)]" />
+          {dayChipText(dt)}
+        </button>
+      ))}
       <div className={bare ? "" : "px-2 py-1"}>
         {slots.map((slot) => {
           const ms = meals.filter((m) => m.slot === slot);
@@ -596,6 +701,7 @@ function DayCard({
                   <MealChip
                     key={m.id}
                     meal={m}
+                    travel={travelOf(m)}
                     recipe={m.recipe_id ? byId[m.recipe_id] : undefined}
                     canEdit={canEdit}
                     flash={justRolled.has(m.id)}
@@ -627,7 +733,9 @@ function DayCard({
                     </button>
                   )}
                   {!canEdit && ms.length === 0 && <span className="text-xs text-[var(--color-faint)]">—</span>}
-                  {slot === "lunch" && lunchReady && (canEdit || ms.length > 0) && <LunchPills day={day} rows={lunch} canEdit={canEdit} onSet={onSetLunch} />}
+                  {slot === "lunch" && lunchReady && (canEdit || ms.length > 0) && (
+                    <LunchPills day={day} rows={lunch} canEdit={canEdit} onSet={onSetLunch} travelling={travellersAt(trips, day, "lunch")} />
+                  )}
                 </div>
               </div>
             </div>
@@ -638,11 +746,36 @@ function DayCard({
   );
 }
 
-/** Lunch row only: one pill per planner, "J · home" or "J · office". Tap flips it; Shallaine sees it read-only. */
-function LunchPills({ day, rows, canEdit, onSet }: { day: string; rows: LunchLocationRow[]; canEdit: boolean; onSet: (person: LunchPerson, location: LunchLocation) => void }) {
+/** Lunch row only: one pill per planner, "J · home" or "J · office". Tap flips it; Shallaine sees it read-only.
+ *  Someone travelling at lunch gets a fixed "J away" pill: there is no lunch to pack. */
+function LunchPills({
+  day,
+  rows,
+  canEdit,
+  onSet,
+  travelling = [],
+}: {
+  day: string;
+  rows: LunchLocationRow[];
+  canEdit: boolean;
+  onSet: (person: LunchPerson, location: LunchLocation) => void;
+  travelling?: LunchPerson[];
+}) {
   return (
     <span className="ml-auto flex shrink-0 items-center gap-1">
       {LUNCH_PEOPLE.map((p) => {
+        if (travelling.includes(p)) {
+          return (
+            <span
+              key={p}
+              className="inline-flex min-h-7 items-center rounded-full border border-dashed border-[var(--color-line)] px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-faint)]"
+              title={`${LUNCH_PERSON_LABEL[p]} is travelling`}
+              aria-label={`${LUNCH_PERSON_LABEL[p]} is travelling at lunch.`}
+            >
+              {LUNCH_PERSON_SHORT[p]} away
+            </span>
+          );
+        }
         const loc = lunchLocationOf(rows, day, p);
         const office = loc === "office";
         const where = office ? "packed for the office" : "at home";
@@ -669,6 +802,7 @@ function LunchPills({ day, rows, canEdit, onSet }: { day: string; rows: LunchLoc
 
 function MealChip({
   meal,
+  travel,
   recipe,
   canEdit,
   flash = false,
@@ -678,6 +812,8 @@ function MealChip({
   onPickAnother,
 }: {
   meal: PlannedMeal;
+  /** Who eats once travellers are out, and how much to cook (travel.ts). */
+  travel: MealTravel;
   recipe: PlannerRecipe | undefined;
   canEdit: boolean;
   flash?: boolean;
@@ -688,6 +824,9 @@ function MealChip({
 }) {
   const cooked = !!meal.cooked_at;
   const pending = meal.id < 0;
+  const travelling = travel.away.length > 0;
+  // The recipe page scales to how much gets cooked (a leftover source keeps its usual amount).
+  const recipeHref = `/recipes/${meal.recipe_id}?eaters=${travel.cook ?? meal.eaters}&pm=${meal.id}`;
   const [menu, setMenu] = useState(false);
   useEffect(() => {
     if (!menu) return;
@@ -720,7 +859,7 @@ function MealChip({
           </span>
         ) : (
         <Link
-          href={`/recipes/${meal.recipe_id}?eaters=${meal.eaters}&pm=${meal.id}`}
+          href={recipeHref}
           className="line-clamp-2 min-w-0 flex-1 leading-tight text-[var(--color-ink)] hover:text-[var(--color-terra)]"
           title={recipe?.title}
         >
@@ -730,17 +869,29 @@ function MealChip({
         </Link>
         )}
         <span className="flex shrink-0 items-center gap-1">
-          <button
-            onClick={canEdit ? onCycleEaters : undefined}
-            disabled={!canEdit}
-            className={`inline-flex min-h-7 items-center rounded-full border border-[var(--color-line)] bg-[var(--color-paper)]/50 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-body)] ${
-              canEdit ? "hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]" : ""
-            }`}
-            title="Who's eating (tap to change)"
-            aria-label={`Who's eating: ${EATERS_SHORT[meal.eaters]}. Tap to change.`}
-          >
-            {EATERS_SHORT[meal.eaters]}
-          </button>
+          {travelling ? (
+            // Someone planned for this meal is out of town: the trip decides, so the chip is fixed.
+            <span
+              className="inline-flex min-h-7 items-center gap-1 rounded-full border border-[var(--color-mustard)]/60 bg-[var(--color-mustard)]/15 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-ink)]"
+              title={`${eatersSentence(travel)} Edit the trip to change it.`}
+              aria-label={`Who's eating: ${eatersSentence(travel)}`}
+            >
+              <SuitcaseIcon size={11} />
+              {eatersChip(travel.eaters)}
+            </span>
+          ) : (
+            <button
+              onClick={canEdit ? onCycleEaters : undefined}
+              disabled={!canEdit}
+              className={`inline-flex min-h-7 items-center rounded-full border border-[var(--color-line)] bg-[var(--color-paper)]/50 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-body)] ${
+                canEdit ? "hover:border-[var(--color-terra)] hover:text-[var(--color-terra)]" : ""
+              }`}
+              title="Who's eating (tap to change)"
+              aria-label={`Who's eating: ${EATERS_SHORT[meal.eaters]}. Tap to change.`}
+            >
+              {EATERS_SHORT[meal.eaters]}
+            </button>
+          )}
           {canEdit && (
             <button
               onClick={(e) => {
@@ -769,7 +920,7 @@ function MealChip({
               </button>
             )}
             {meal.recipe_id !== null && (
-              <Link role="menuitem" href={`/recipes/${meal.recipe_id}?eaters=${meal.eaters}&pm=${meal.id}`} className="flex min-h-11 w-full items-center px-4 text-left hover:bg-[var(--color-paper)]/60">
+              <Link role="menuitem" href={recipeHref} className="flex min-h-11 w-full items-center px-4 text-left hover:bg-[var(--color-paper)]/60">
                 Open recipe
               </Link>
             )}

@@ -47,6 +47,23 @@ export function parseLunchLocation(v: unknown): LunchLocation | null {
   return typeof v === "string" && (LUNCH_LOCATIONS as readonly string[]).includes(v) ? (v as LunchLocation) : null;
 }
 
+// ---- Trips (migration 0009): someone travelling misses a run of meals ----
+
+/** One row of trips. The person misses every meal from (from_date, from_slot) to (to_date, to_slot), inclusive. */
+export type TripRow = {
+  id: number;
+  person: LunchPerson;
+  from_date: string; // YYYY-MM-DD
+  from_slot: Slot;
+  to_date: string; // YYYY-MM-DD
+  to_slot: Slot;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TripInput = Pick<TripRow, "person" | "from_date" | "from_slot" | "to_date" | "to_slot">;
+
 /** One row of planned_meals, as stored. week_of is generated in Postgres.
  *  Carries EITHER a recipe_id OR custom_text (a one-off like "White rice"). */
 export type PlannedMeal = {

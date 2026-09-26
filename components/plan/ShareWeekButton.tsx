@@ -6,23 +6,32 @@
 // the helper without seeing the picker.
 
 import { useState } from "react";
-import type { LunchLocationRow, PlannedMeal, PlannerRecipe, Slot } from "@/lib/plan/types";
+import type { LunchLocationRow, PlannedMeal, PlannerRecipe, Slot, TripRow } from "@/lib/plan/types";
 import { mealTitle } from "@/lib/plan/types";
 import { lunchAway, packShort } from "@/lib/plan/lunch";
+import { travellersAt, tripSummary } from "@/lib/plan/travel";
 import { formatDayLabel, formatWeekRange, weekDates } from "@/lib/week";
 
 const SLOT_ORDER: Slot[] = ["breakfast", "lunch", "dinner", "snack"];
 
-export function shareText(weekOf: string, meals: PlannedMeal[], byId: Record<string, PlannerRecipe>, lunch: LunchLocationRow[] = []): string {
+export function shareText(
+  weekOf: string,
+  meals: PlannedMeal[],
+  byId: Record<string, PlannerRecipe>,
+  lunch: LunchLocationRow[] = [],
+  trips: TripRow[] = [],
+): string {
   const lines: string[] = [`Meals for ${formatWeekRange(weekOf)}`];
+  // Trips first: Shallaine needs to know who she is cooking for before the menu.
+  for (const t of trips) lines.push(tripSummary(t));
   for (const d of weekDates(weekOf)) {
     const ms = meals
       .filter((m) => m.planned_for === d)
       .sort((a, b) => SLOT_ORDER.indexOf(a.slot) - SLOT_ORDER.indexOf(b.slot) || a.position - b.position);
     if (ms.length === 0) continue;
     const dishes = ms.map((m) => `${m.leftover_of !== null ? "leftover " : ""}${mealTitle(m, byId)}`).join(" · ");
-    // Office days: tell Shallaine whose lunch goes in a box.
-    const pack = ms.some((m) => m.slot === "lunch") ? packShort(lunchAway(lunch, d)) : null;
+    // Office days: tell Shallaine whose lunch goes in a box (never for someone travelling).
+    const pack = ms.some((m) => m.slot === "lunch") ? packShort(lunchAway(lunch, d, travellersAt(trips, d, "lunch"))) : null;
     lines.push(`${formatDayLabel(d)}: ${dishes}${pack ? ` · ${pack}` : ""}`);
   }
   return lines.join("\n");
@@ -33,17 +42,19 @@ export function ShareWeekButton({
   meals,
   byId,
   lunch = [],
+  trips = [],
 }: {
   weekOf: string;
   meals: PlannedMeal[];
   byId: Record<string, PlannerRecipe>;
   lunch?: LunchLocationRow[];
+  trips?: TripRow[];
 }) {
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
 
   async function share() {
     const url = `${window.location.origin}/plan?week=${weekOf}&as=helper`;
-    const text = shareText(weekOf, meals, byId, lunch);
+    const text = shareText(weekOf, meals, byId, lunch, trips);
     const payload = { title: "This week's meals", text: `${text}\n`, url };
     try {
       if (navigator.share) {

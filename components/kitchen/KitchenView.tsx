@@ -7,17 +7,29 @@ import { thumb } from "@/lib/images";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import type { LunchLocationRow, PlannedMeal, PlannerRecipe, Slot } from "@/lib/plan/types";
+import type { LunchLocationRow, PlannedMeal, PlannerRecipe, Slot, TripRow } from "@/lib/plan/types";
 import { mealTitle, SLOTS, SLOT_LABEL } from "@/lib/plan/types";
 import { lunchAway, packNote, packShort } from "@/lib/plan/lunch";
+import {
+  dayChipText,
+  eatersChip,
+  eatersSentence,
+  kitchenTravelLine,
+  leftoverSources,
+  mealLabel,
+  mealTravel,
+  travelOnDay,
+  travelPortionNote,
+  travellersAt,
+  type MealTravel,
+} from "@/lib/plan/travel";
 import { usePlannedMeals } from "@/lib/plan/usePlannedMeals";
-import { EATERS_SHORT, portionNote } from "@/lib/portions";
 import { addDays, formatDayLabel, formatDayLong, isoDow, todayInTz, weekMondayOf } from "@/lib/week";
 import { isPlanner, labelFor } from "@/lib/role";
 import { useRole } from "@/components/role/RoleProvider";
 import { MarkCookedButton } from "./MarkCookedButton";
 import { RatingStars } from "@/components/RatingStars";
-import { BasketIcon, BowlIcon, PlateIcon, SunIcon } from "@/components/icons";
+import { BasketIcon, BowlIcon, PlateIcon, SuitcaseIcon, SunIcon } from "@/components/icons";
 
 /** From Friday: next week's shop, so an empty today can say something useful. */
 export type ShopAhead = { week: string; meals: number; items: number } | null;
@@ -31,15 +43,22 @@ type Props = {
   shopAhead?: ShopAhead;
   /** lunch_locations rows for the window: who is packing lunch for the office. */
   initialLunch?: LunchLocationRow[];
+  /** trips touching the window: who is out of town (travel.ts). */
+  initialTrips?: TripRow[];
 };
 
-export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {}, shopAhead = null, initialLunch = [] }: Props) {
+export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {}, shopAhead = null, initialLunch = [], initialTrips = [] }: Props) {
   const role = useRole();
   const router = useRouter();
   const planner = isPlanner(role);
   const to = addDays(today, 6);
   const window = useMemo(() => ({ from: today, to }), [today, to]);
-  const { meals, lunch, status } = usePlannedMeals(null, initialMeals, window, initialLunch);
+  const { meals, lunch, trips, status } = usePlannedMeals(null, initialMeals, window, initialLunch, initialTrips);
+  const withLeftovers = useMemo(() => leftoverSources(meals), [meals]);
+  const travelOf = (m: PlannedMeal) => mealTravel(m, trips, withLeftovers.has(m.id));
+  /** "Fri 2 lunch" for every leftover sitting planned from this meal. */
+  const leftoversOf = (m: PlannedMeal) => meals.filter((x) => x.leftover_of === m.id).map((x) => mealLabel(x.planned_for, x.slot));
+  const packFor = (day: string) => lunchAway(lunch, day, travellersAt(trips, day, "lunch"));
 
   // A phone left open overnight must not keep calling yesterday "Today".
   useEffect(() => {
@@ -95,6 +114,8 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {}, 
         </div>
       </header>
 
+      <TravelNotice day={today} trips={trips} />
+
       {/* TODAY */}
       {todayMeals.length === 0 ? (
         <EmptyDay
@@ -123,12 +144,19 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {}, 
             return (
               <section key={slot}>
                 <SlotHeading slot={slot} />
-                {slot === "lunch" && packNote(lunchAway(lunch, today)) && (
-                  <p className="mt-1 text-xs font-medium text-[var(--color-terra-dark)]">{packNote(lunchAway(lunch, today))}</p>
+                {slot === "lunch" && packNote(packFor(today)) && (
+                  <p className="mt-1 text-xs font-medium text-[var(--color-terra-dark)]">{packNote(packFor(today))}</p>
                 )}
                 <div className="mt-2 space-y-3">
                   {ms.map((m) => (
-                    <MealCard key={m.id} meal={m} recipe={m.recipe_id ? recipes[m.recipe_id] : undefined} big />
+                    <MealCard
+                      key={m.id}
+                      meal={m}
+                      travel={travelOf(m)}
+                      leftovers={leftoversOf(m)}
+                      recipe={m.recipe_id ? recipes[m.recipe_id] : undefined}
+                      big
+                    />
                   ))}
                 </div>
               </section>
@@ -155,10 +183,11 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {}, 
           <h2 className="font-display text-2xl text-[var(--color-ink)]">Tomorrow</h2>
           <span className="text-[12px] uppercase tracking-[0.06em] text-[var(--color-muted)]">{formatDayLong(tomorrow)}</span>
         </div>
-        {tomorrowMeals.some((m) => m.slot === "lunch") && packNote(lunchAway(lunch, tomorrow)) && (
+        <TravelNotice day={tomorrow} trips={trips} compact />
+        {tomorrowMeals.some((m) => m.slot === "lunch") && packNote(packFor(tomorrow)) && (
           <p className="mt-3 rounded-lg bg-[var(--color-mustard)]/12 px-2.5 py-1.5 text-xs text-[var(--color-ink)]">
             <span className="mr-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-terra-dark)]">Lunch</span>
-            {packNote(lunchAway(lunch, tomorrow))}
+            {packNote(packFor(tomorrow))}
           </p>
         )}
         {isoDow(tomorrow) === 6 && tomorrowMeals.length === 0 ? (
@@ -171,6 +200,8 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {}, 
               <MealCard
                 key={m.id}
                 meal={m}
+                travel={travelOf(m)}
+                leftovers={leftoversOf(m)}
                 recipe={m.recipe_id ? recipes[m.recipe_id] : undefined}
                 future
                 hint={
@@ -193,33 +224,45 @@ export function KitchenView({ today, initialMeals, recipes, hintsByRecipe = {}, 
           {later.map((d) => {
             const ms = byDay.get(d) ?? [];
             const sunday = isoDow(d) === 6;
+            const away = travelOnDay(trips, d);
             return (
               <div key={d} className="flex gap-4 py-3">
                 <div className="w-16 shrink-0 pt-0.5 text-[11px] uppercase tracking-[0.16em] text-[var(--color-muted)]">
                   {formatDayLabel(d)}
                 </div>
                 <div className="min-w-0 flex-1 text-sm">
+                  {away.map((dt) => (
+                    <p key={dt.person} className="mb-1.5 flex items-center gap-1.5 text-[11px] text-[var(--color-terra-dark)]">
+                      <SuitcaseIcon size={12} className="shrink-0" />
+                      {dayChipText(dt)}
+                    </p>
+                  ))}
                   {ms.length === 0 ? (
                     <span className="text-[var(--color-faint)]">{sunday ? "Rest day" : "—"}</span>
                   ) : (
                     <ul className="space-y-1.5">
-                      {ms.map((m) => (
-                        <li key={m.id} className="flex items-baseline gap-2">
-                          <span className="w-14 shrink-0 text-[11px] uppercase tracking-[0.08em] text-[var(--color-faint)]">
-                            {SLOT_ABBR[m.slot]}
-                          </span>
-                          <MaybeLink
-                            href={m.recipe_id === null ? null : `/recipes/${m.recipe_id}?eaters=${m.eaters}&pm=${m.id}`}
-                            className={`line-clamp-2 text-[var(--color-ink)] ${m.recipe_id === null ? "" : "hover:text-[var(--color-terra)]"}`}
-                          >
-                            {m.leftover_of !== null && <span className="text-[var(--color-muted)]">Leftovers · </span>}
-                            {mealTitle(m, recipes)}
-                          </MaybeLink>
-                          <span className="shrink-0 text-[10px] text-[var(--color-faint)]">{EATERS_SHORT[m.eaters]}</span>
-                        </li>
-                      ))}
-                      {ms.some((m) => m.slot === "lunch") && packShort(lunchAway(lunch, d)) && (
-                        <li className="text-[11px] text-[var(--color-terra-dark)]">{packShort(lunchAway(lunch, d))}</li>
+                      {ms.map((m) => {
+                        const t = travelOf(m);
+                        return (
+                          <li key={m.id} className="flex items-baseline gap-2">
+                            <span className="w-14 shrink-0 text-[11px] uppercase tracking-[0.08em] text-[var(--color-faint)]">
+                              {SLOT_ABBR[m.slot]}
+                            </span>
+                            <MaybeLink
+                              href={m.recipe_id === null ? null : `/recipes/${m.recipe_id}?eaters=${t.cook ?? m.eaters}&pm=${m.id}`}
+                              className={`line-clamp-2 text-[var(--color-ink)] ${m.recipe_id === null ? "" : "hover:text-[var(--color-terra)]"}`}
+                            >
+                              {m.leftover_of !== null && <span className="text-[var(--color-muted)]">Leftovers · </span>}
+                              {mealTitle(m, recipes)}
+                            </MaybeLink>
+                            <span className="shrink-0 text-[10px] text-[var(--color-faint)]" title={eatersSentence(t)}>
+                              {eatersChip(t.eaters)}
+                            </span>
+                          </li>
+                        );
+                      })}
+                      {ms.some((m) => m.slot === "lunch") && packShort(packFor(d)) && (
+                        <li className="text-[11px] text-[var(--color-terra-dark)]">{packShort(packFor(d))}</li>
                       )}
                     </ul>
                   )}
@@ -269,6 +312,29 @@ function ProgressRing({ done, total }: { done: number; total: number }) {
         </div>
         <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--color-faint)]">cooked</div>
       </div>
+    </div>
+  );
+}
+
+/** Who is out of town on this day, in a sentence for the cook. Nothing when everyone is home. */
+function TravelNotice({ day, trips, compact = false }: { day: string; trips: TripRow[]; compact?: boolean }) {
+  const away = travelOnDay(trips, day);
+  if (away.length === 0) return null;
+  return (
+    <div
+      className={`flex items-start gap-2 rounded-2xl border border-[var(--color-mustard)]/50 bg-[var(--color-mustard)]/12 text-[var(--color-ink)] ${
+        compact ? "mt-3 px-3 py-2 text-xs" : "mb-6 px-4 py-3 text-sm"
+      }`}
+      role="note"
+    >
+      <SuitcaseIcon size={compact ? 14 : 18} className="mt-px shrink-0 text-[var(--color-terra-dark)]" />
+      <span>
+        {away.map((dt) => (
+          <span key={dt.person} className="block">
+            {kitchenTravelLine(dt)}
+          </span>
+        ))}
+      </span>
     </div>
   );
 }
@@ -352,12 +418,18 @@ const CHEERS = ["Nice one", "Lovely", "That's dinner sorted", "Smells good from 
 
 export function MealCard({
   meal,
+  travel,
+  leftovers = [],
   recipe,
   big = false,
   future = false,
   hint,
 }: {
   meal: PlannedMeal;
+  /** Who eats once travellers are out, and how much to cook (lib/plan/travel.ts). */
+  travel: MealTravel;
+  /** "Fri 2 lunch" for each leftover sitting planned from this meal. */
+  leftovers?: string[];
   recipe: PlannerRecipe | undefined;
   big?: boolean;
   /** Tomorrow's cards: prep hints and the recipe, but no "Mark cooked" on a meal that hasn't happened. */
@@ -367,8 +439,11 @@ export function MealCard({
 }) {
   const custom = meal.recipe_id === null;
   const title = custom ? (meal.custom_text ?? "One-off") : (recipe?.title ?? "Recipe");
-  const href = `/recipes/${meal.recipe_id}?eaters=${meal.eaters}&pm=${meal.id}`;
-  const cookHref = `/recipes/${meal.recipe_id}/cook?pm=${meal.id}&eaters=${meal.eaters}`;
+  // Recipe and cook mode scale to how much gets cooked: a leftover source keeps its usual amount.
+  const cookEaters = travel.cook ?? meal.eaters;
+  const href = `/recipes/${meal.recipe_id}?eaters=${cookEaters}&pm=${meal.id}`;
+  const cookHref = `/recipes/${meal.recipe_id}/cook?pm=${meal.id}&eaters=${cookEaters}`;
+  const portion = travelPortionNote(travel, leftovers);
   const cooked = !!meal.cooked_at;
   const leftover = meal.leftover_of !== null;
   const [cheer, setCheer] = useState<string | null>(null);
@@ -434,12 +509,22 @@ export function MealCard({
                 {title}
               </h3>
             </MaybeLink>
-            <span className="shrink-0 rounded-full border border-[var(--color-line)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--color-muted)]">
-              {EATERS_SHORT[meal.eaters]}
+            <span
+              className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] ${
+                travel.away.length > 0
+                  ? "border-[var(--color-mustard)]/60 bg-[var(--color-mustard)]/15 text-[var(--color-ink)]"
+                  : "border-[var(--color-line)] text-[var(--color-muted)]"
+              }`}
+              title={eatersSentence(travel)}
+              aria-label={`Who's eating: ${eatersSentence(travel)}`}
+            >
+              {travel.away.length > 0 && <SuitcaseIcon size={11} />}
+              {eatersChip(travel.eaters)}
             </span>
           </div>
-          {big && (
-            <p className="mt-2 text-xs leading-relaxed text-[var(--color-muted)]">{portionNote(meal.eaters)}</p>
+          {big && portion && <p className="mt-2 text-xs leading-relaxed text-[var(--color-muted)]">{portion}</p>}
+          {!big && travel.away.length > 0 && portion && (
+            <p className="mt-1.5 text-[11px] leading-snug text-[var(--color-muted)]">{portion}</p>
           )}
           {meal.note && (
             <p className="mt-2 rounded-lg bg-[var(--color-mustard)]/12 px-2.5 py-1.5 text-xs text-[var(--color-ink)]">

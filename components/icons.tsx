@@ -193,6 +193,17 @@ export function SunIcon(p: IconProps) {
   );
 }
 
+/** Travelling: a suitcase with its handle and two straps. */
+export function SuitcaseIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <rect x="4" y="7.5" width="16" height="12" rx="2" />
+      <path d="M9 7.5V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5v2" />
+      <path d="M8.5 7.5v12M15.5 7.5v12" />
+    </Svg>
+  );
+}
+
 /** Money on a receipt: the till slip with its torn foot. */
 export function ReceiptIcon(p: IconProps) {
   return (
