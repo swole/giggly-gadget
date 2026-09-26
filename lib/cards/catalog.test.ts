@@ -38,6 +38,14 @@ describe("built-in cards", () => {
   it("encode a clean scannable value", () => {
     for (const card of BUILTIN_CARDS) {
       expect(card.value).toBe(normaliseValue(card.value));
+      if (card.qr) expect(card.qr).toBe(normaliseValue(card.qr));
+    }
+  });
+
+  // The QR and the number under it have to name the same member.
+  it("put the on-screen number inside a QR override", () => {
+    for (const card of BUILTIN_CARDS.filter((c) => c.qr)) {
+      expect(card.qr).toContain(card.value);
     }
   });
 
@@ -50,6 +58,8 @@ describe("built-in cards", () => {
 
   it("still carry the numbers Johnny gave", () => {
     expect(BUILTIN_CARDS.find((c) => c.id === "yuu")?.value).toBe("78683054");
+    // Decoded from the yuu app's own QR: a member link around the ID.
+    expect(BUILTIN_CARDS.find((c) => c.id === "yuu")?.qr).toBe("https://link.yuu.sg/member/78683054");
     expect(BUILTIN_CARDS.find((c) => c.id === "little-farms")?.value).toBe("92463867");
     // Decoded from the PayLah! app's own QR: lowercase L after "sK".
     expect(BUILTIN_CARDS.find((c) => c.id === "return-right")?.value).toBe(

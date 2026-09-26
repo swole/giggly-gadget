@@ -15,6 +15,11 @@ export type MemberCard = {
   label: string;
   /** Raw value that gets encoded. Digits only for phone/member numbers. */
   value: string;
+  /**
+   * What the QR carries when the programme's own QR is more than the bare value
+   * (yuu's wraps the ID in a member link). Copy and the number on screen stay on `value`.
+   */
+  qr?: string;
   /** How the value reads to a human — grouped for the cashier. */
   display: string;
   primary: PrimaryCode;

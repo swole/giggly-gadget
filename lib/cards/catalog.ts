@@ -30,11 +30,14 @@ export const BUILTIN_CARDS: MemberCard[] = [
     where: "Cold Storage · Giant · CS Fresh · Guardian · 7-Eleven",
     label: "yuu ID",
     value: "78683054",
+    // Decoded from the QR on the yuu app's yuu ID screen (2026-09-26): the app
+    // wraps the ID in a member link, so a QR of the bare number is not the same code.
+    qr: "https://link.yuu.sg/member/78683054",
     display: "7868 3054",
     primary: "qr",
     accent: "#2b6fe0",
     accentInk: "#ffffff",
-    note: "Generated from the yuu ID. If the till rejects it, tap “Use a photo” and snap the code in the yuu app.",
+    note: "Scans the same as the QR in the yuu app.",
     builtin: true,
   },
   {

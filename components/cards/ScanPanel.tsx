@@ -80,6 +80,9 @@ export function ScanPanel({ card, onClose }: { card: MemberCard; onClose: () => 
   const showQr = card.primary !== "number";
   const heroIsNumber = card.primary === "number" && !usingPhoto;
   const link = isLink(card.value);
+  const qrValue = card.qr ?? card.value;
+  // A QR that carries a link stands alone, as it does in the programme's own app.
+  const qrOnly = isLink(qrValue);
 
   // Portalled to <body>: the page's <main> is its own stacking context, so a
   // fixed panel inside it still renders *under* the tab bar.
@@ -120,12 +123,12 @@ export function ScanPanel({ card, onClose }: { card: MemberCard; onClose: () => 
               </p>
             </div>
           ) : (
-            showQr && <QrCode value={card.value} className="mx-auto block w-full max-w-[19rem]" />
+            showQr && <QrCode value={qrValue} className="mx-auto block w-full max-w-[19rem]" />
           )}
 
           {!usingPhoto && (
             <>
-              {!link && (
+              {!qrOnly && (
                 <div className={heroIsNumber || showQr ? "mt-5 border-t border-black/10 pt-5" : ""}>
                   <Barcode value={card.value} height={heroIsNumber ? 84 : 70} className="mx-auto block h-auto w-full" />
                 </div>
