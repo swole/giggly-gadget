@@ -4,10 +4,31 @@
 // same thing reads fine stacked, so no separate column layout — the planner is
 // used from a phone. Sunday is collapsed as the helper's rest day; snack rows are
 // collapsed unless they have meals or the planner toggles them on.
+//
+// Drag and drop (@dnd-kit/core): every meal chip is draggable, every mealtime row is a
+// drop target. A mouse drags after 6 px; a finger presses and holds for 250 ms first, so
+// a swipe across the week still scrolls it. lib/plan/move.ts decides whether a drop is
+// allowed; the lifted chip says where it would land before you let go.
 
 import { thumb } from "@/lib/images";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { useEffect, useMemo, useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  MouseSensor,
+  TouchSensor,
+  pointerWithin,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type Announcements,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
 import type { LunchLocation, LunchLocationRow, LunchPerson, NewPlannedMeal, PlannedMeal, PlannerRecipe, Slot, TripInput, TripRow } from "@/lib/plan/types";
 import { LUNCH_PEOPLE, mealTitle, SLOT_LABEL } from "@/lib/plan/types";
 import { LUNCH_PERSON_LABEL, LUNCH_PERSON_SHORT, lunchLocationOf, toggleLunchLocation } from "@/lib/plan/lunch";
@@ -16,6 +37,7 @@ import {
   eatersChip,
   eatersSentence,
   leftoverSources,
+  mealLabel,
   mealTravel,
   travelOnDay,
   travellersAt,
@@ -37,8 +59,29 @@ import { TripSheet } from "./TripSheet";
 import { Die } from "./Die";
 import type { RollFilters } from "@/lib/plan/randomize";
 import { weekConstraintStatus, type ProteinClass } from "@/lib/plan/constraints";
+import { checkMove, nextPosition, type MoveCheck, type MoveTarget } from "@/lib/plan/move";
 
 const VISIBLE_SLOTS: Slot[] = ["breakfast", "lunch", "dinner"];
+
+const mealDragId = (id: number) => `meal:${id}`;
+const slotDropId = (day: string, slot: Slot) => `slot:${day}:${slot}`;
+
+// A drag that ends where it started must not also count as a tap on the recipe link.
+// dnd-kit stops the click's propagation but not its default, and a Next <Link> whose
+// onClick never runs falls back to a full page load.
+let lastDropAt = 0;
+function swallowClickAfterDrop(e: ReactMouseEvent) {
+  if (Date.now() - lastDropAt < 400) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+}
+
+const subscribeNothing = () => () => {};
+/** False during server render, true in the browser: the drag overlay portals to <body>. */
+function useIsClient() {
+  return useSyncExternalStore(subscribeNothing, () => true, () => false);
+}
 
 function themeSummary(f: RollFilters): string | null {
   const parts = [
@@ -55,6 +98,8 @@ function themeSummary(f: RollFilters): string | null {
 type RollToast = {
   text: string;
   theme: string | null;
+  /** The die marks a roll; a move or a refused drop speaks in words alone. */
+  die?: boolean;
   again?: () => void;
   undo?: () => void;
   undoLabel?: string;
@@ -95,7 +140,7 @@ export function WeekPlanner({
 }) {
   const role = useRole();
   const canEdit = isPlanner(role);
-  const { meals, lunch, trips, status, add, remove, patch, setLunch, saveTrip, deleteTrip, refetch } = usePlannedMeals(
+  const { meals, lunch, trips, status, add, remove, patch, move, setLunch, saveTrip, deleteTrip, refetch } = usePlannedMeals(
     weekOf,
     initialMeals,
     undefined,
@@ -116,17 +161,18 @@ export function WeekPlanner({
   const [justRolled, setJustRolled] = useState<Set<number>>(new Set());
   // First-run teach-in-place for the two invisible gestures (replaces the old
   // footer caption nobody scrolled to). Gone forever after "Got it" or a first use.
+  // v2 (2026-09-27) added drag and drop, so the tip comes back once for everyone.
   const [showGestureTip, setShowGestureTip] = useState(false);
   useEffect(() => {
     // One-shot read of a persisted dismissal flag — external-system sync on mount.
     try {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (!localStorage.getItem("gg-gesture-tip-v1")) setShowGestureTip(true);
+      if (!localStorage.getItem("gg-gesture-tip-v2")) setShowGestureTip(true);
     } catch {}
   }, []);
   function dismissGestureTip() {
     setShowGestureTip(false);
-    try { localStorage.setItem("gg-gesture-tip-v1", "1"); } catch {}
+    try { localStorage.setItem("gg-gesture-tip-v2", "1"); } catch {}
   }
 
   const byId = useMemo(() => {
@@ -234,6 +280,98 @@ export function WeekPlanner({
     setUndo(null);
     await add({ planned_for: m.planned_for, slot: m.slot, recipe_id: m.recipe_id, custom_text: m.custom_text, eaters: m.eaters, note: m.note, leftover_of: m.leftover_of });
   }
+
+  // ---- drag and drop ----
+  const isClient = useIsClient();
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    // Phones: press and hold first, so a swipe that starts on a meal still scrolls the week.
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 6 } }),
+  );
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<MoveTarget | null>(null);
+  const dragMeal = dragId === null ? null : (meals.find((m) => m.id === dragId) ?? null);
+  const dropCheck = (to: MoveTarget): MoveCheck | null => (dragMeal ? checkMove(dragMeal, to, meals) : null);
+  const overCheck = dragOver ? dropCheck(dragOver) : null;
+  const dragCaption =
+    dragOver && overCheck && !(overCheck.ok && overCheck.same)
+      ? overCheck.ok
+        ? { ok: true, text: `Move to ${mealLabel(dragOver.planned_for, dragOver.slot)}` }
+        : { ok: false, text: overCheck.message }
+      : null;
+
+  const mealOf = (dragData: unknown) => {
+    const id = (dragData as { mealId?: number } | undefined)?.mealId;
+    return id === undefined ? undefined : meals.find((m) => m.id === id);
+  };
+  const targetOf = (dropData: unknown) => (dropData as MoveTarget | undefined) ?? null;
+
+  function onDragStart(e: DragStartEvent) {
+    const m = mealOf(e.active.data.current);
+    if (!m) return;
+    setDragId(m.id);
+    setDragOver(null);
+    try { navigator.vibrate?.(10); } catch {}
+  }
+  function onDragOver(e: DragOverEvent) {
+    setDragOver(targetOf(e.over?.data.current));
+  }
+  function endDrag() {
+    lastDropAt = Date.now();
+    setDragId(null);
+    setDragOver(null);
+  }
+  async function onDragEnd(e: DragEndEvent) {
+    endDrag();
+    const m = mealOf(e.active.data.current);
+    const to = targetOf(e.over?.data.current);
+    if (!m || !to) return;
+    const check = checkMove(m, to, meals);
+    if (check.ok && check.same) return;
+    if (!check.ok) return showRollToast({ text: check.message, theme: null, die: false });
+    const from = { planned_for: m.planned_for, slot: m.slot, position: m.position };
+    flash([m.id]);
+    const res = await move(m.id, { ...to, position: nextPosition(meals, m.id, to) });
+    if (!res.ok) return showRollToast({ text: res.error, theme: null, die: false });
+    showRollToast({
+      text: `Moved to ${mealLabel(to.planned_for, to.slot)}`,
+      theme: null,
+      die: false,
+      undo: () => {
+        void (async () => {
+          flash([m.id]);
+          const back = await move(m.id, from);
+          if (!back.ok) showRollToast({ text: back.error, theme: null, die: false });
+        })();
+      },
+      undoLabel: "Undo",
+    });
+  }
+
+  // Screen-reader lines in words (dnd-kit's defaults read "draggable item meal:12").
+  const announcements: Announcements = {
+    onDragStart: ({ active }) => {
+      const m = mealOf(active.data.current);
+      return m ? `Picked up ${mealTitle(m, byId)}.` : undefined;
+    },
+    onDragOver: ({ over }) => {
+      const to = targetOf(over?.data.current);
+      return to ? `Over ${mealLabel(to.planned_for, to.slot)}.` : undefined;
+    },
+    onDragEnd: ({ active, over }) => {
+      const m = mealOf(active.data.current);
+      const to = targetOf(over?.data.current);
+      if (!m) return undefined;
+      if (!to) return `${mealTitle(m, byId)} stays on ${mealLabel(m.planned_for, m.slot)}.`;
+      const check = checkMove(m, to, meals);
+      if (!check.ok) return check.message;
+      return check.same ? `${mealTitle(m, byId)} stays on ${mealLabel(m.planned_for, m.slot)}.` : `Moved ${mealTitle(m, byId)} to ${mealLabel(to.planned_for, to.slot)}.`;
+    },
+    onDragCancel: ({ active }) => {
+      const m = mealOf(active.data.current);
+      return m ? `Cancelled. ${mealTitle(m, byId)} stays on ${mealLabel(m.planned_for, m.slot)}.` : undefined;
+    },
+  };
 
 
   const days = weekDates(weekOf);
@@ -356,8 +494,9 @@ export function WeekPlanner({
       {canEdit && meals.length > 0 && showGestureTip && (
         <div className="mb-5 flex items-start justify-between gap-3 rounded-2xl bg-[var(--color-paper-2)]/50 px-4 py-3 text-xs leading-relaxed text-[var(--color-body)]">
           <span>
-            Tap the <span className="rounded-full border border-[var(--color-line)] bg-[var(--color-paper)]/60 px-1.5 py-0.5 text-[10px] font-semibold">J+L</span> badge
-            on any meal to change who&rsquo;s eating. The ⋯ holds notes, a themed swap, and remove.
+            Press and hold a meal, then drag it to another day or mealtime. Tap the{" "}
+            <span className="rounded-full border border-[var(--color-line)] bg-[var(--color-paper)]/60 px-1.5 py-0.5 text-[10px] font-semibold">J+L</span> badge
+            to change who&rsquo;s eating. The ⋯ holds notes, a themed swap, and remove.
           </span>
           <button onClick={dismissGestureTip} className="btn-quiet shrink-0 px-3 py-1 text-[11px] uppercase tracking-[0.08em]">
             Got it
@@ -380,79 +519,113 @@ export function WeekPlanner({
         </div>
       )}
 
-      <div className="space-y-5">
-        {days.slice(0, 6).map((d) => (
-          <DayCard
-            key={d}
-            day={d}
-            isToday={d === today}
-            slots={slots}
-            meals={meals.filter((m) => m.planned_for === d)}
-            byId={byId}
-            proteinByRecipe={proteinByRecipe}
-            canEdit={canEdit}
-            rollBusy={rollBusy}
-            justRolled={justRolled}
-            onAdd={(slot) => setPicker({ day: d, slot })}
-            onRemove={removeWithUndo}
-            onNote={setNoteFor}
-            onCycleEaters={(m) => patch(m.id, { eaters: nextEaters(m.eaters) })}
-            onRollDay={() => setRollSheet({ kind: "day", day: d })}
-            onRollSlot={(slot) => setRollSheet({ kind: "slot", day: d, slot })}
-            onPickAnother={(m) => void pickAnother(m)}
-            lunch={lunch}
-            lunchReady={lunchReady}
-            onSetLunch={(p, l) => void setLunch(d, p, l)}
-            trips={trips}
-            withLeftovers={withLeftovers}
-            onEditTrip={(t) => setTripSheet({ trip: t })}
-          />
-        ))}
+      <DndContext
+        id="plan-dnd"
+        sensors={sensors}
+        collisionDetection={pointerWithin}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDragEnd={(e) => void onDragEnd(e)}
+        onDragCancel={endDrag}
+        accessibility={{
+          announcements,
+          screenReaderInstructions: { draggable: "Press and hold a meal, then drag it to another day or mealtime." },
+        }}
+      >
+        <div className="space-y-5">
+          {days.slice(0, 6).map((d) => (
+            <DayCard
+              key={d}
+              day={d}
+              isToday={d === today}
+              slots={slots}
+              meals={meals.filter((m) => m.planned_for === d)}
+              byId={byId}
+              proteinByRecipe={proteinByRecipe}
+              canEdit={canEdit}
+              rollBusy={rollBusy}
+              justRolled={justRolled}
+              onAdd={(slot) => setPicker({ day: d, slot })}
+              onRemove={removeWithUndo}
+              onNote={setNoteFor}
+              onCycleEaters={(m) => patch(m.id, { eaters: nextEaters(m.eaters) })}
+              onRollDay={() => setRollSheet({ kind: "day", day: d })}
+              onRollSlot={(slot) => setRollSheet({ kind: "slot", day: d, slot })}
+              onPickAnother={(m) => void pickAnother(m)}
+              lunch={lunch}
+              lunchReady={lunchReady}
+              onSetLunch={(p, l) => void setLunch(d, p, l)}
+              trips={trips}
+              withLeftovers={withLeftovers}
+              onEditTrip={(t) => setTripSheet({ trip: t })}
+              dropCheck={(slot) => dropCheck({ planned_for: d, slot })}
+            />
+          ))}
 
-        {/* Sunday: rest day, collapsed */}
-        <div className="rounded-2xl border border-dashed border-[var(--color-line)]/80 px-4 py-3">
-          <button
-            onClick={() => setShowSunday((v) => !v)}
-            className="flex w-full items-center justify-between text-left"
-          >
-            <span className="font-display text-lg text-[var(--color-muted)]">
-              {formatDayLabel(days[6])} <span className="text-sm italic">· rest day</span>
-            </span>
-            <span className="text-[12px] uppercase tracking-[0.06em] text-[var(--color-faint)]">
-              {sundayMeals.length > 0 ? `${sundayMeals.length} planned` : showSunday ? "Hide" : "Plan anyway"}
-            </span>
-          </button>
-          {(showSunday || sundayMeals.length > 0) && (
-            <div className="mt-3">
-              <DayCard
-                day={days[6]}
-                isToday={days[6] === today}
-                slots={slots}
-                meals={sundayMeals}
-                byId={byId}
-                proteinByRecipe={proteinByRecipe}
-                canEdit={canEdit}
-                rollBusy={rollBusy}
-                justRolled={justRolled}
-                onAdd={(slot) => setPicker({ day: days[6], slot })}
-                onRemove={removeWithUndo}
-                onNote={setNoteFor}
-                onCycleEaters={(m) => patch(m.id, { eaters: nextEaters(m.eaters) })}
-                onRollDay={() => setRollSheet({ kind: "day", day: days[6] })}
-                onRollSlot={(slot) => setRollSheet({ kind: "slot", day: days[6], slot })}
-                onPickAnother={(m) => void pickAnother(m)}
-                lunch={lunch}
-                lunchReady={lunchReady}
-                onSetLunch={(p, l) => void setLunch(days[6], p, l)}
-                trips={trips}
-                withLeftovers={withLeftovers}
-                onEditTrip={(t) => setTripSheet({ trip: t })}
-                bare
-              />
-            </div>
-          )}
+          {/* Sunday: rest day, collapsed */}
+          <div className="rounded-2xl border border-dashed border-[var(--color-line)]/80 px-4 py-3">
+            <button
+              onClick={() => setShowSunday((v) => !v)}
+              className="flex w-full items-center justify-between text-left"
+            >
+              <span className="font-display text-lg text-[var(--color-muted)]">
+                {formatDayLabel(days[6])} <span className="text-sm italic">· rest day</span>
+              </span>
+              <span className="text-[12px] uppercase tracking-[0.06em] text-[var(--color-faint)]">
+                {sundayMeals.length > 0 ? `${sundayMeals.length} planned` : showSunday ? "Hide" : "Plan anyway"}
+              </span>
+            </button>
+            {(showSunday || sundayMeals.length > 0) && (
+              <div className="mt-3">
+                <DayCard
+                  day={days[6]}
+                  isToday={days[6] === today}
+                  slots={slots}
+                  meals={sundayMeals}
+                  byId={byId}
+                  proteinByRecipe={proteinByRecipe}
+                  canEdit={canEdit}
+                  rollBusy={rollBusy}
+                  justRolled={justRolled}
+                  onAdd={(slot) => setPicker({ day: days[6], slot })}
+                  onRemove={removeWithUndo}
+                  onNote={setNoteFor}
+                  onCycleEaters={(m) => patch(m.id, { eaters: nextEaters(m.eaters) })}
+                  onRollDay={() => setRollSheet({ kind: "day", day: days[6] })}
+                  onRollSlot={(slot) => setRollSheet({ kind: "slot", day: days[6], slot })}
+                  onPickAnother={(m) => void pickAnother(m)}
+                  lunch={lunch}
+                  lunchReady={lunchReady}
+                  onSetLunch={(p, l) => void setLunch(days[6], p, l)}
+                  trips={trips}
+                  withLeftovers={withLeftovers}
+                  onEditTrip={(t) => setTripSheet({ trip: t })}
+                  dropCheck={(slot) => dropCheck({ planned_for: days[6], slot })}
+                  bare
+                />
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+
+        {/* The lifted chip. Portalled: <main> is its own stacking context, so a fixed layer
+            inside it renders under the tab bar. No drop animation: the chip is already in
+            its new row (with the rolled-in flash) by the time the finger lifts. */}
+        {isClient &&
+          createPortal(
+            <DragOverlay dropAnimation={null} zIndex={70}>
+              {dragMeal ? (
+                <DragFace
+                  meal={dragMeal}
+                  recipe={dragMeal.recipe_id ? byId[dragMeal.recipe_id] : undefined}
+                  eaters={eatersChip(mealTravel(dragMeal, trips, withLeftovers.has(dragMeal.id)).eaters)}
+                  caption={dragCaption}
+                />
+              ) : null}
+            </DragOverlay>,
+            document.body,
+          )}
+      </DndContext>
 
       {canEdit && !hasSnacks && (
         <div className="mt-6">
@@ -466,8 +639,8 @@ export function WeekPlanner({
         <div className="fixed inset-x-4 bottom-24 z-40 mx-auto max-w-md rounded-2xl bg-[var(--color-ink)] px-4 py-3 text-sm text-[var(--color-cream)] shadow-xl" role="status">
           <div className="flex items-center justify-between gap-3">
             <span className="min-w-0">
-              <span className="block truncate">
-                <Die size={12} className="mr-1.5 inline-block align-[-1px] text-[var(--color-mustard)]" />
+              <span className={rollToast.die === false ? "line-clamp-2 block" : "block truncate"}>
+                {rollToast.die !== false && <Die size={12} className="mr-1.5 inline-block align-[-1px] text-[var(--color-mustard)]" />}
                 {rollToast.text}
               </span>
               {rollToast.theme && <span className="block truncate text-[11px] uppercase tracking-[0.08em] text-[var(--color-cream)]/60">theme: {rollToast.theme}</span>}
@@ -591,6 +764,7 @@ function DayCard({
   trips,
   withLeftovers,
   onEditTrip,
+  dropCheck,
   bare = false,
 }: {
   day: string;
@@ -615,6 +789,8 @@ function DayCard({
   trips: TripRow[];
   withLeftovers: Set<number>;
   onEditTrip: (t: TripRow) => void;
+  /** While a meal is being dragged: may it land on this day's mealtime? null when nothing is held. */
+  dropCheck: (slot: Slot) => MoveCheck | null;
   bare?: boolean;
 }) {
   const travelOf = (m: PlannedMeal) => mealTravel(m, trips, withLeftovers.has(m.id));
@@ -692,7 +868,7 @@ function DayCard({
         {slots.map((slot) => {
           const ms = meals.filter((m) => m.slot === slot);
           return (
-            <div key={slot} className="flex gap-3 border-b border-[var(--color-line)]/40 px-2 py-2 last:border-b-0">
+            <SlotRow key={slot} day={day} slot={slot} canEdit={canEdit} check={dropCheck(slot)}>
               <div className="w-16 shrink-0 pt-2 text-[11px] font-medium uppercase tracking-[0.1em] text-[var(--color-muted)]">
                 {SLOT_LABEL[slot]}
               </div>
@@ -738,11 +914,93 @@ function DayCard({
                   )}
                 </div>
               </div>
-            </div>
+            </SlotRow>
           );
         })}
       </div>
     </section>
+  );
+}
+
+/** One mealtime row of a day, and a drop target while a meal is held over it. The highlight
+ *  is paint only (tint + inset ring, no size change), so the rects dnd-kit measured when the
+ *  drag began stay true. A row that refuses the meal only dims: the caption on the held
+ *  chip says why, and a ring there would read as "yes". */
+function SlotRow({ day, slot, canEdit, check, children }: { day: string; slot: Slot; canEdit: boolean; check: MoveCheck | null; children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: slotDropId(day, slot), data: { planned_for: day, slot } satisfies MoveTarget, disabled: !canEdit });
+  const lit = isOver && check !== null && !(check.ok && check.same);
+  return (
+    <div
+      ref={setNodeRef}
+      data-slot={`${day}:${slot}`}
+      data-drop={lit ? (check.ok ? "ok" : "refused") : undefined}
+      className={`flex gap-3 border-b px-2 py-2 transition-[background-color,box-shadow] duration-150 last:border-b-0 ${
+        !lit
+          ? "border-[var(--color-line)]/40"
+          : check.ok
+            ? "rounded-xl border-transparent bg-[var(--color-terra)]/10 ring-2 ring-inset ring-[var(--color-terra)]/60"
+            : "rounded-xl border-transparent bg-[var(--color-ink)]/5"
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** A meal's picture: the recipe photo, its initial, or the pencil of a one-off. */
+function MealThumb({ meal, recipe }: { meal: PlannedMeal; recipe: PlannerRecipe | undefined }) {
+  return (
+    <span className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg ${meal.recipe_id === null ? "border border-[var(--color-line)] bg-[var(--color-paper)]/40 text-[13px] text-[var(--color-muted)]" : "bg-[var(--color-paper-2)]"}`}>
+      {meal.recipe_id === null ? (
+        <span aria-hidden>✎</span>
+      ) : recipe?.image_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={thumb(recipe.image_url, 96)!} alt="" draggable={false} className="h-full w-full object-cover" loading="lazy" />
+      ) : (
+        <span aria-hidden className="font-display text-sm text-[var(--color-faint)]">{(recipe?.title ?? "?").slice(0, 1)}</span>
+      )}
+    </span>
+  );
+}
+
+/** The meal as it looks in the hand: lifted off the page, tilted a touch, with a line
+ *  above it saying where it would land (or why it can't). */
+function DragFace({
+  meal,
+  recipe,
+  eaters,
+  caption,
+}: {
+  meal: PlannedMeal;
+  recipe: PlannerRecipe | undefined;
+  eaters: string;
+  caption: { ok: boolean; text: string } | null;
+}) {
+  return (
+    <div className="relative h-full w-full cursor-grabbing">
+      {caption && (
+        <span
+          aria-hidden
+          className={`absolute bottom-full left-1 mb-2 w-max max-w-[min(20rem,80vw)] rounded-full px-3 py-1 text-[12px] font-medium leading-snug shadow-md ${
+            caption.ok
+              ? "bg-[var(--color-ink)] text-[var(--color-cream)]"
+              : "border border-[var(--color-terra)]/50 bg-[var(--color-cream)] text-[var(--color-terra-dark)]"
+          }`}
+        >
+          {caption.text}
+        </span>
+      )}
+      <div className="animate-lift flex h-full w-full -rotate-1 scale-[1.02] items-center gap-2.5 rounded-xl border border-[var(--color-terra)]/70 bg-[var(--color-card)] py-1.5 pl-1.5 pr-2 text-[13px] shadow-[0_18px_34px_-14px_rgba(85,55,25,0.6)]">
+        <MealThumb meal={meal} recipe={recipe} />
+        <span className="line-clamp-2 min-w-0 flex-1 leading-tight text-[var(--color-ink)]">
+          {meal.leftover_of !== null && <span className="text-[var(--color-muted)]">Leftovers · </span>}
+          {meal.recipe_id === null ? meal.custom_text : (recipe?.title ?? "Recipe")}
+        </span>
+        <span className="inline-flex min-h-7 shrink-0 items-center rounded-full border border-[var(--color-line)] bg-[var(--color-paper)]/50 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-body)]">
+          {eaters}
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -834,21 +1092,22 @@ function MealChip({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [menu]);
+  // The whole chip is the handle. A saved meal only: a pending one has no row to move yet.
+  const draggable = canEdit && !pending;
+  const { setNodeRef, listeners, isDragging } = useDraggable({ id: mealDragId(meal.id), data: { mealId: meal.id }, disabled: !draggable });
   return (
     <span className="relative block w-full">
       <span
-        className={`flex w-full items-center gap-2.5 rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] py-1.5 pl-1.5 pr-1 text-[13px] shadow-[0_1px_3px_-1px_rgba(85,55,25,0.3)] ${pending ? "opacity-60" : ""} ${flash ? "animate-rolled-in" : ""}`}
+        ref={setNodeRef}
+        {...listeners}
+        data-meal={meal.id}
+        onClickCapture={swallowClickAfterDrop}
+        className={`flex w-full items-center gap-2.5 rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] py-1.5 pl-1.5 pr-1 text-[13px] shadow-[0_1px_3px_-1px_rgba(85,55,25,0.3)] ${
+          // no text selection or iOS link callout on the press-and-hold that picks it up
+          draggable ? "cursor-grab touch-manipulation select-none [-webkit-touch-callout:none]" : ""
+        } ${isDragging ? "border-dashed opacity-40 shadow-none" : ""} ${pending ? "opacity-60" : ""} ${flash ? "animate-rolled-in" : ""}`}
       >
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg ${meal.recipe_id === null ? "border border-[var(--color-line)] bg-[var(--color-paper)]/40 text-[13px] text-[var(--color-muted)]" : "bg-[var(--color-paper-2)]"}`}>
-          {meal.recipe_id === null ? (
-            <span aria-hidden>✎</span>
-          ) : recipe?.image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={thumb(recipe.image_url, 96)!} alt="" className="h-full w-full object-cover" loading="lazy" />
-          ) : (
-            <span aria-hidden className="font-display text-sm text-[var(--color-faint)]">{(recipe?.title ?? "?").slice(0, 1)}</span>
-          )}
-        </span>
+        <MealThumb meal={meal} recipe={recipe} />
         {meal.recipe_id === null ? (
           <span
             className="line-clamp-2 min-w-0 flex-1 leading-tight text-[var(--color-ink)]"
@@ -860,6 +1119,7 @@ function MealChip({
         ) : (
         <Link
           href={recipeHref}
+          draggable={false}
           className="line-clamp-2 min-w-0 flex-1 leading-tight text-[var(--color-ink)] hover:text-[var(--color-terra)]"
           title={recipe?.title}
         >

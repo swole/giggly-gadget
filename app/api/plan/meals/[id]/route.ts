@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { isValidYmd, weekMondayOf } from "@/lib/week";
 import { scheduleGroceryRebuild } from "@/lib/grocery/auto-build";
-import { parseSlot, type PlannedMealPatch } from "@/lib/plan/types";
+import { parseSlot, type PlannedMealPatch, type Slot } from "@/lib/plan/types";
+import { checkMove, type MoveMeal } from "@/lib/plan/move";
 import { parseEaters } from "@/lib/portions";
 
 export const runtime = "nodejs";
@@ -14,7 +15,9 @@ function parseId(raw: string): number | null {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-/** PATCH /api/plan/meals/:id  { eaters?, note?, slot?, planned_for?, position? } → { meal } */
+/** PATCH /api/plan/meals/:id  { eaters?, note?, slot?, planned_for?, position? } → { meal }
+ *  A move (planned_for / slot) is checked by lib/plan/move.ts: 409 { error, reason } when it
+ *  would put leftovers at or before the meal they come from, or clash with the same recipe. */
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   const { id: raw } = await ctx.params;
   const id = parseId(raw);
@@ -57,16 +60,30 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   }
 
   const supa = supabaseAdmin();
-  const { data: before } = await supa.from("planned_meals").select("planned_for, leftover_of").eq("id", id).maybeSingle();
+  const cols = "id, recipe_id, planned_for, slot, leftover_of";
+  const { data: row } = await supa.from("planned_meals").select(cols).eq("id", id).maybeSingle();
+  const before = row as MoveMeal | null;
+  // A move (drag and drop on /plan) must keep leftovers after the meal they come from.
+  if (before && (patch.planned_for !== undefined || patch.slot !== undefined)) {
+    const to = { planned_for: (patch.planned_for as string | undefined) ?? before.planned_for, slot: (patch.slot as Slot | undefined) ?? before.slot };
+    const [source, leftovers] = await Promise.all([
+      before.leftover_of !== null ? supa.from("planned_meals").select(cols).eq("id", before.leftover_of) : Promise.resolve({ data: [] }),
+      supa.from("planned_meals").select(cols).eq("leftover_of", id),
+    ]);
+    const related = [...((source.data ?? []) as MoveMeal[]), ...((leftovers.data ?? []) as MoveMeal[])];
+    const check = checkMove(before, to, [before, ...related]);
+    if (!check.ok) return NextResponse.json({ error: check.message, reason: check.reason }, { status: 409 });
+  }
   const { data, error } = await supa.from("planned_meals").update(patch).eq("id", id).select("*").single();
   if (error) {
-    if (error.code === "23505") return NextResponse.json({ error: "duplicate" }, { status: 409 });
+    if (error.code === "23505") return NextResponse.json({ error: "That mealtime already has this recipe", reason: "duplicate" }, { status: 409 });
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  // eaters / date changes move quantities between weeks; leftovers are not shopped for
-  if (patch.eaters !== undefined || patch.planned_for !== undefined) {
+  // eaters / date / mealtime changes move quantities: between weeks, and in or out of a
+  // trip (trips start and end on a meal). Leftovers are not shopped for.
+  if (patch.eaters !== undefined || patch.planned_for !== undefined || patch.slot !== undefined) {
     scheduleGroceryRebuild(
-      before?.planned_for ? weekMondayOf(before.planned_for as string) : null,
+      before?.planned_for ? weekMondayOf(before.planned_for) : null,
       weekMondayOf((data as { planned_for: string }).planned_for),
     );
   }

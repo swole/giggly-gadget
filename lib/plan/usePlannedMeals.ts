@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import type { LunchLocation, LunchLocationRow, LunchPerson, NewPlannedMeal, PlannedMeal, PlannedMealPatch, TripInput, TripRow } from "./types";
+import type { LunchLocation, LunchLocationRow, LunchPerson, NewPlannedMeal, PlannedMeal, PlannedMealPatch, Slot, TripInput, TripRow } from "./types";
 import { addDays, weekMondayOf } from "@/lib/week";
 import { tripOverlaps } from "./travel";
 
@@ -279,6 +279,35 @@ export function usePlannedMeals(
     [meals, upsertLocal],
   );
 
+  /** Move a meal to another day / mealtime (drag and drop). Optimistic; reverts on failure and
+   *  resolves to the server's reason, e.g. leftovers that would land before their meal. */
+  const move = useCallback(
+    async (id: number, to: { planned_for: string; slot: Slot; position: number }): Promise<{ ok: true } | { ok: false; error: string }> => {
+      const before = meals.find((m) => m.id === id);
+      if (!before) return { ok: false, error: "That meal is no longer on the plan." };
+      upsertLocal({ ...before, ...to, week_of: weekMondayOf(to.planned_for) });
+      const seq = (patchSeq.current[id] = (patchSeq.current[id] ?? 0) + 1);
+      try {
+        const res = await fetch(`/api/plan/meals/${id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(to),
+        });
+        const j = (await res.json().catch(() => ({}))) as { meal?: PlannedMeal; error?: string };
+        if (!res.ok || !j.meal) {
+          if (patchSeq.current[id] === seq) upsertLocal(before);
+          return { ok: false, error: j.error ?? `Could not move it (${res.status}).` };
+        }
+        if (patchSeq.current[id] === seq) upsertLocal(j.meal);
+        return { ok: true };
+      } catch {
+        if (patchSeq.current[id] === seq) upsertLocal(before);
+        return { ok: false, error: "No connection. Try again." };
+      }
+    },
+    [meals, upsertLocal],
+  );
+
   /** Home or office for one person on one day. Optimistic; reverts on failure. */
   const setLunch = useCallback(
     async (planned_for: string, person: LunchPerson, location: LunchLocation): Promise<boolean> => {
@@ -343,7 +372,7 @@ export function usePlannedMeals(
     [trips, removeTripLocal, upsertTripLocal],
   );
 
-  return { meals, lunch, trips, status, add, remove, patch, setLunch, saveTrip, deleteTrip, refetch };
+  return { meals, lunch, trips, status, add, remove, patch, move, setLunch, saveTrip, deleteTrip, refetch };
 }
 
 function sortTrips(ts: TripRow[]): TripRow[] {

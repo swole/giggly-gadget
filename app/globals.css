@@ -250,8 +250,16 @@ button:focus-visible, a:focus-visible, input:focus-visible,
 .animate-scan-in {
   animation: scan-in 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
+/* Planner drag: the held meal comes up off the page into its tilt (only a from-frame, so it
+   settles on the element's own rotate / scale / shadow). */
+@keyframes lift {
+  from { rotate: 0deg; scale: 1; box-shadow: 0 1px 3px -1px rgba(85, 55, 25, 0.3); }
+}
+.animate-lift {
+  animation: lift 0.14s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
 @media (prefers-reduced-motion: reduce) {
-  .animate-cheer, .animate-float-up, .animate-tick-in, .animate-slide-up, .animate-dice, .animate-rolled-in, .animate-scan-in { animation: none; }
+  .animate-cheer, .animate-float-up, .animate-tick-in, .animate-slide-up, .animate-dice, .animate-rolled-in, .animate-scan-in, .animate-lift { animation: none; }
 }
 /* Inputs: 16px on touch screens stops iOS zooming the page when a field is focused. */
 @media (pointer: coarse) {

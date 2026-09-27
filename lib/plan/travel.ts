@@ -22,15 +22,15 @@ export const MAX_TRIP_DAYS = 62;
 
 type TripSpan = Pick<TripRow, "person" | "from_date" | "from_slot" | "to_date" | "to_slot">;
 
-// "2026-09-28#1" sorts in meal order as a plain string.
-function point(day: string, slot: Slot): string {
+// "2026-09-28#1" sorts in meal order as a plain string (also used by move.ts).
+export function mealPoint(day: string, slot: Slot): string {
   return `${day}#${TRIP_SLOT_ORDER[slot]}`;
 }
 
 /** Does this trip cover the given meal? */
 export function coversMeal(trip: TripSpan, day: string, slot: Slot): boolean {
-  const p = point(day, slot);
-  return p >= point(trip.from_date, trip.from_slot) && p <= point(trip.to_date, trip.to_slot);
+  const p = mealPoint(day, slot);
+  return p >= mealPoint(trip.from_date, trip.from_slot) && p <= mealPoint(trip.to_date, trip.to_slot);
 }
 
 /** Does this trip touch any day in [from, to] (inclusive)? */
@@ -139,7 +139,7 @@ export function travelOnDay(trips: TripRow[], day: string): DayTravel[] {
     const missed = TRIP_EDGE_SLOTS.filter((s) => mine.some((t) => coversMeal(t, day, s)));
     if (missed.length === 0) continue;
     // The trip that reaches furthest decides "back for".
-    const trip = mine.reduce((a, b) => (point(b.to_date, b.to_slot) > point(a.to_date, a.to_slot) ? b : a));
+    const trip = mine.reduce((a, b) => (mealPoint(b.to_date, b.to_slot) > mealPoint(a.to_date, a.to_slot) ? b : a));
     out.push({ person: p, trip, missed });
   }
   return out;
@@ -232,7 +232,7 @@ export function parseTripInput(v: unknown): { ok: true; trip: TripInput } | { ok
   const to_date = typeof b.to_date === "string" ? b.to_date : "";
   if (!person) return { ok: false, error: "Pick who is travelling." };
   if (!isValidYmd(from_date) || !isValidYmd(to_date) || !from_slot || !to_slot) return { ok: false, error: "Pick the first and last meal away." };
-  if (point(to_date, to_slot) < point(from_date, from_slot)) return { ok: false, error: "The last meal away comes before the first one." };
+  if (mealPoint(to_date, to_slot) < mealPoint(from_date, from_slot)) return { ok: false, error: "The last meal away comes before the first one." };
   if (to_date > addDays(from_date, MAX_TRIP_DAYS)) return { ok: false, error: `Trips can run ${MAX_TRIP_DAYS} days at most.` };
   return { ok: true, trip: { person, from_date, from_slot, to_date, to_slot } };
 }
