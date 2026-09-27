@@ -208,8 +208,10 @@ try {
 
   // 5. a meal past its own leftovers: refused
   await scrollTo(phone, slot(day(0), 'dinner'), 120)
-  mid = await touchDrag(phone, soup.id, slot(day(1), 'dinner'))
+  mid = await touchDrag(phone, soup.id, slot(day(1), 'dinner'), { shot: '07-phone-refused-long.png' })
+  const capFits = await phone.evaluate(() => { const c = [...document.body.children].find((el) => el.style && el.style.zIndex === '70')?.querySelector('.bottom-full'); return c ? c.getBoundingClientRect().right <= innerWidth : true })
   check('source after leftovers: caption', mid.caption === `Its leftovers on ${lab(1, 'lunch')} would come first`, mid.caption)
+  check('long caption stays on screen', capFits)
   m = (await meals()).find((x) => x.id === soup.id)
   check('source after leftovers: not moved', m?.planned_for === day(0) && m?.slot === 'dinner', where(m))
 

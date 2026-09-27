@@ -981,7 +981,8 @@ function DragFace({
       {caption && (
         <span
           aria-hidden
-          className={`absolute bottom-full left-1 mb-2 w-max max-w-[min(20rem,80vw)] rounded-full px-3 py-1 text-[12px] font-medium leading-snug shadow-md ${
+          // no wider than the held chip, which is already on screen: a long reason wraps
+          className={`absolute bottom-full left-1 mb-2 w-max max-w-full text-balance rounded-2xl px-3 py-1 text-[12px] font-medium leading-snug shadow-md ${
             caption.ok
               ? "bg-[var(--color-ink)] text-[var(--color-cream)]"
               : "border border-[var(--color-terra)]/50 bg-[var(--color-cream)] text-[var(--color-terra-dark)]"
