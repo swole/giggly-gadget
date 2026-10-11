@@ -209,6 +209,18 @@ export function RecipePickerSheet({
             autoFocus={typeof window !== "undefined" && !window.matchMedia("(pointer: coarse)").matches}
             value={q}
             onChange={(e) => setQ(e.target.value)}
+            // Enter adds what was typed: the recipe whose title matches it exactly (so its
+            // shopping still lands), otherwise the text as a one-off line.
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" || e.nativeEvent.isComposing || busy !== null) return;
+              const t = q.trim();
+              if (!t) return;
+              e.preventDefault();
+              const exact = recipes.find((r) => r.title.trim().toLowerCase() === t.toLowerCase());
+              if (exact) void pick(exact.id);
+              else if (onPickCustom && t.length >= 2) void pickCustom(t);
+            }}
+            enterKeyHint="done"
             placeholder="Search recipes…"
             className="mt-4 w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)]/50 px-4 py-3 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-faint)] focus:border-[var(--color-terra)] focus:outline-none"
           />
