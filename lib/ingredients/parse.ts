@@ -77,7 +77,8 @@ function parseNumber(token: string): number | null {
   return Number.isFinite(num) ? num : null;
 }
 
-const QTY_TOKEN = "(?:\\d+\\s+\\d+\\/\\d+|\\d+\\/\\d+|\\d+(?:\\.\\d+)?|[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]|\\d+[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])";
+// Mixed forms ("1½", "1 ½", "1 1/2") must come before the bare integer, or "1" wins and "½" lands in the name.
+const QTY_TOKEN = "(?:\\d+\\s*[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]|\\d+\\s+\\d+\\/\\d+|\\d+\\/\\d+|\\d+(?:\\.\\d+)?|[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])";
 const QTY_RANGE_RE = new RegExp(`^(${QTY_TOKEN})(?:${RANGE_SEP_RE.source}(${QTY_TOKEN}))?`, "i");
 const UNIT_RE = new RegExp(`^(${UNIT_REGEX_SOURCE})\\b\\.?`, "i");
 const PAREN_METRIC_RE = /\s*\(([^)]+)\)/;

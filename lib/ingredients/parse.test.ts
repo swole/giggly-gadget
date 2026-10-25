@@ -36,6 +36,12 @@ describe("parseIngredient", () => {
     expect(r).toMatchObject({ qty_min: 0.5, unit: "tsp", name: "salt", category: "spice" });
   });
 
+  test("mixed unicode fraction", () => {
+    expect(parseIngredient("- 1½ tsp paprika")).toMatchObject({ qty_min: 1.5, unit: "tsp", name: "paprika" });
+    expect(parseIngredient("- 2 ¼ cups flour")).toMatchObject({ qty_min: 2.25, unit: "cup", name: "flour" });
+    expect(parseIngredient("- 1½-2 tbsp honey")).toMatchObject({ qty_min: 1.5, qty_max: 2, unit: "tbsp", name: "honey" });
+  });
+
   test("parenthetical metric — prefer if needed", () => {
     const r = parseIngredient("- 1/2 cup (120ml) chicken stock");
     expect(r.name).toBe("chicken stock");
